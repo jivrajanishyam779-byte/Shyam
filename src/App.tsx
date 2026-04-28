@@ -6,158 +6,174 @@ import { ImageGenerator } from './components/ImageGenerator';
 import { VideoGenerator } from './components/VideoGenerator';
 import { cn } from './lib/utils';
 
-type Tab = 'writing' | 'image' | 'video';
+type Tab = 'writing' | 'image' | 'video' | 'home';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('writing');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const tabs = [
-    { id: 'writing', name: 'Pen', icon: PenLine, label: 'Draft Mode', index: '01' },
-    { id: 'image', name: 'Canvas', icon: ImageIcon, label: 'Visual Studio', index: '02' },
-    { id: 'video', name: 'Motion', icon: Video, label: 'Action Studio', index: '03' },
+    { 
+      id: 'writing', 
+      name: 'Theory Lab', 
+      icon: PenLine, 
+      label: 'Summarizer', 
+      index: '01'
+    },
+    { 
+      id: 'image', 
+      name: 'Visuals', 
+      icon: ImageIcon, 
+      label: 'Art Forge', 
+      index: '02'
+    },
+    { 
+      id: 'video', 
+      name: 'Motion', 
+      icon: Video, 
+      label: 'Forge', 
+      index: '03'
+    },
   ];
 
   return (
-    <div className="flex h-screen bg-[#080808] text-white font-sans selection:bg-neon selection:text-black overflow-hidden">
-      {/* Sidebar */}
+    <div className="flex h-screen bg-[#080808] text-white font-sans selection:bg-neon selection:text-black overflow-hidden relative">
+      {/* Immersive Background Decor */}
+      <div className="absolute inset-0 pointer-events-none opacity-[0.02]">
+        <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '40px 40px' }} />
+      </div>
+
+      {/* Sidebar - ChatGPT Style */}
       <motion.aside
         initial={false}
-        animate={{ width: isSidebarOpen ? 240 : 80 }}
-        className="grid-line-r flex flex-col z-50 shrink-0 bg-[#080808]"
+        animate={{ width: isSidebarOpen ? 280 : 0 }}
+        className="flex flex-col z-50 shrink-0 bg-[#0d0d0d] relative border-r border-white/5"
       >
-        <div className="h-20 grid-line-b flex items-center px-6">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key="logo"
-              className="flex items-center gap-2 font-display text-2xl tracking-tighter"
-            >
-              STJ<span className="text-neon">.</span>
-              {isSidebarOpen && <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }}>STUDIO</motion.span>}
-            </motion.div>
-          </AnimatePresence>
+        <div className="h-16 flex items-center px-6 justify-between border-b border-white/5">
+          <button 
+            onClick={() => setActiveTab('home' as any)}
+            className="flex items-center gap-2 font-display text-xl tracking-tighter"
+          >
+            STJ<span className="text-neon">.</span>STUDIO
+          </button>
         </div>
 
-        <div className="flex-1 flex overflow-hidden">
-          {/* Vertical Label */}
-          <div className="w-12 grid-line-r flex items-center justify-center">
-            <span className="vertical-text text-[10px] uppercase font-bold tracking-[0.3em] text-white/30">
-              NAVIGATION
-            </span>
+        <div className="flex-1 overflow-y-auto px-3 py-4 space-y-2 custom-scrollbar">
+          <div className="px-3 mb-2">
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/20">Tools</span>
           </div>
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as Tab)}
+              className={cn(
+                "w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-200 group relative",
+                activeTab === tab.id ? "bg-white/5 text-white" : "text-white/40 hover:bg-white/[0.02] hover:text-white"
+              )}
+            >
+              <div className={cn(
+                "w-8 h-8 flex items-center justify-center shrink-0 border transition-all duration-300 rounded-md",
+                activeTab === tab.id 
+                  ? "border-neon text-neon bg-neon/10" 
+                  : "border-white/10 text-white/30 group-hover:border-white/30"
+              )}>
+                <tab.icon className="w-4 h-4" />
+              </div>
 
-          <nav className="flex-1 px-4 py-8 space-y-6">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as Tab)}
-                className="w-full flex flex-col gap-1 text-left group transition-all"
-              >
-                <div className="flex items-center gap-3">
-                  <div className={cn(
-                    "w-10 h-10 border flex items-center justify-center font-display text-sm transition-all duration-300",
-                    activeTab === tab.id 
-                      ? "border-neon text-neon shadow-[0_0_15px_rgba(223,255,0,0.1)]" 
-                      : "border-white/10 text-white/40 group-hover:border-white/30"
-                  )}>
-                    {tab.index}
-                  </div>
-                  {isSidebarOpen && (
-                    <div className="flex flex-col">
-                      <span className={cn(
-                        "font-display text-sm uppercase tracking-wider transition-colors",
-                        activeTab === tab.id ? "text-white" : "text-white/40 group-hover:text-white/60"
-                      )}>
-                        {tab.name}
-                      </span>
-                      <span className="text-[9px] uppercase tracking-widest text-white/20 font-bold">
-                        {tab.label}
-                      </span>
-                    </div>
-                  )}
-                </div>
+              <div className="flex flex-col items-start overflow-hidden whitespace-nowrap">
+                <span className="font-medium text-sm tracking-tight">{tab.name}</span>
+              </div>
+            </button>
+          ))}
+
+          <div className="px-3 pt-6 mb-2 mt-4 border-t border-white/5">
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/20">Recent Sessions</span>
+          </div>
+          {/* Placeholder for history */}
+          <div className="space-y-1">
+            {['Quantum Physics Summary', 'App Logo Design', 'Lecture Notes'].map((item, i) => (
+              <button key={i} className="w-full text-left px-3 py-2 text-xs text-white/20 hover:text-white/40 truncate rounded-md hover:bg-white/[0.01]">
+                {item}
               </button>
             ))}
-          </nav>
+          </div>
         </div>
 
-        <div className="p-6 grid-line-t">
-          <button 
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="w-full flex items-center justify-center p-2 border border-white/5 hover:border-white/20 transition-all group"
-          >
-            <Menu className={cn("w-5 h-5 text-white/20 group-hover:text-neon transition-colors", !isSidebarOpen && "rotate-90")} />
-          </button>
+        <div className="p-4 border-t border-white/5 space-y-2">
+           <button className="w-full flex items-center gap-3 p-3 text-xs text-white/40 hover:text-white transition-colors rounded-lg hover:bg-white/5">
+              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
+                <span className="text-[10px]">SJ</span>
+              </div>
+              <span>Settings</span>
+           </button>
         </div>
       </motion.aside>
 
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col relative overflow-hidden">
-        {/* Header */}
-        <header className="h-20 grid-line-b flex items-center justify-between px-10 z-40 bg-[#080808]/80 backdrop-blur-xl">
-           <div className="flex items-center gap-8">
-              <h2 className="font-display text-3xl uppercase tracking-tighter">
-                {tabs.find(t => t.id === activeTab)?.name} Studio
-                <span className="text-neon">.</span>
+      {/* Toggle Sidebar Button (Floating) */}
+      {!isSidebarOpen && (
+        <button 
+          onClick={() => setIsSidebarOpen(true)}
+          className="fixed left-4 top-4 z-[60] w-10 h-10 bg-white/5 border border-white/10 flex items-center justify-center hover:bg-neon hover:text-black transition-all"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+      )}
+
+      {/* Main Content Area */}
+      <main className="flex-1 flex flex-col relative z-20 overflow-hidden bg-[#080808]">
+        {/* Minimalist Header */}
+        <header className="h-16 flex items-center justify-between px-10 border-b border-white/5">
+           <div className="flex items-center gap-4">
+              <button 
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                className={cn("p-2 text-white/30 hover:text-white transition-all hidden md:block", isSidebarOpen && "text-white/60")}
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+              <h2 className="text-sm font-medium text-white/60">
+                {tabs.find(t => t.id === activeTab)?.name}
               </h2>
-              <div className="h-6 w-px bg-white/10" />
-              <div className="hidden md:flex items-center gap-6">
-                <div className="flex flex-col">
-                  <span className="text-[9px] font-mono uppercase tracking-widest text-white/30">Buffer_Status</span>
-                  <div className="flex items-center gap-3">
-                    <div className="w-24 h-[2px] bg-white/5 overflow-hidden">
-                      <motion.div 
-                        initial={{ width: 0 }}
-                        animate={{ width: "84%" }}
-                        className="h-full bg-neon"
-                      />
-                    </div>
-                    <span className="text-[10px] font-mono text-neon">84%</span>
-                  </div>
-                </div>
-              </div>
            </div>
            
            <div className="flex items-center gap-6">
-              <div className="hidden sm:flex flex-col items-end">
-                <span className="text-[10px] uppercase font-bold tracking-widest text-white/30">System_Node</span>
-                <span className="text-xs font-mono text-white/80">AIS-ASIA-SE1</span>
-              </div>
-              <button className="bg-neon text-black px-6 py-2 font-display text-sm uppercase tracking-wide hover:bg-white transition-all transform active:scale-95">
-                Upgrade Plan
+              <button className="bg-white/5 border border-white/10 px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider hover:bg-white/10 transition-all">
+                Share
+              </button>
+              <button className="bg-neon text-black px-5 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider hover:bg-white transition-all">
+                Upgrade
               </button>
            </div>
         </header>
 
-        {/* Content Area */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar relative bg-[#080808]">
-          {/* Background Grid Pattern */}
-          <div className="absolute inset-0 pointer-events-none opacity-[0.03]">
-            <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '40px 40px' }} />
-          </div>
-
+        {/* Content Viewport */}
+        <div className="flex-1 overflow-hidden relative flex flex-col">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-              className="h-full flex flex-col relative z-10"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3 }}
+              className="flex-1 overflow-y-auto custom-scrollbar"
             >
-              {activeTab === 'writing' && <WritingAssistant />}
-              {activeTab === 'image' && <ImageGenerator />}
-              {activeTab === 'video' && <VideoGenerator />}
+              <div className="max-w-3xl mx-auto w-full h-full px-6 py-12">
+                {activeTab === 'writing' && <WritingAssistant />}
+                {activeTab === 'image' && <ImageGenerator />}
+                {activeTab === 'video' && <VideoGenerator />}
+              </div>
             </motion.div>
           </AnimatePresence>
         </div>
 
-        {/* Footer */}
-        <footer className="h-10 grid-line-t flex items-center justify-between px-10 text-[9px] font-mono uppercase tracking-[0.2em] text-white/30 z-40 bg-[#080808]">
-          <div>&COPY; 2026 STJ CREATIVE SYSTEMS</div>
-          <div className="flex gap-6">
-            <span>REGION: US-EAST-1</span>
-            <span className="text-neon/60">VERSION: 0.1.4-BETA</span>
+        {/* Status Bar */}
+        <footer className="h-8 flex items-center justify-between px-6 text-[8px] font-mono uppercase tracking-[0.2em] text-white/20 border-t border-white/5">
+          <div className="flex items-center gap-3">
+            <div className="w-1.5 h-1.5 rounded-full bg-neon/40" />
+            <span>ID: {Math.random().toString(36).substring(7).toUpperCase()}</span>
+          </div>
+          <div className="flex gap-4">
+            <span>Server: ASIA-SOUTH-1</span>
+            <span className="text-neon/30">Stable v1.0.4</span>
           </div>
         </footer>
       </main>

@@ -36,7 +36,6 @@ export function VideoGenerator() {
   };
 
   const handleGenerate = async () => {
-    // Check for API Key selection (required for Veo)
     const hasKey = await window.aistudio.hasSelectedApiKey();
     if (!hasKey) {
       setNeedsKey(true);
@@ -48,8 +47,8 @@ export function VideoGenerator() {
     setProgressMsg('Initializing specialized video engine...');
 
     try {
-      // Create new instance to ensure up-to-date key
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+      const apiKey = (process.env.GEMINI_API_KEY || process.env.API_KEY) as string;
+      const ai = new GoogleGenAI({ apiKey });
       
       const imageParts = image ? {
         imageBytes: image.split(',')[1],
@@ -71,11 +70,9 @@ export function VideoGenerator() {
 
       const loadingMessages = [
         'Interpreting visual metadata...',
-        'Simulating physics and fluid dynamics...',
-        'Rendering high-fidelity frames...',
-        'Sampling temporal consistency...',
-        'Synthesizing final composition...',
-        'Polishing cinematic gradients...'
+        'Simulating physics...',
+        'Rendering frames...',
+        'Synthesizing gradients...'
       ];
       
       let msgIndex = 0;
@@ -89,7 +86,6 @@ export function VideoGenerator() {
 
       const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
       if (downloadLink) {
-        setProgressMsg('Fetching generated media...');
         const response = await fetch(downloadLink, {
           method: 'GET',
           headers: {
@@ -118,168 +114,146 @@ export function VideoGenerator() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row h-full">
-      {/* Controls Area */}
-      <div className="w-full lg:w-[450px] grid-line-r p-10 flex flex-col overflow-y-auto custom-scrollbar bg-[#050505]">
-        <div className="mb-12 space-y-4">
-          <div className="flex items-center gap-3">
-             <div className="w-8 h-[1px] bg-neon" />
-             <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-neon">Kinetic_Core</span>
-          </div>
-          <h3 className="text-5xl font-display uppercase tracking-tighter leading-none">Motion Forge.</h3>
-          <p className="text-white/40 text-xs uppercase tracking-widest leading-relaxed">Animating static states into temporal sequences.</p>
-        </div>
-
-        <div className="space-y-8 flex-1">
-          <div className="space-y-4">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-white/30">Reference Pattern</label>
-            <div 
-              onClick={() => fileInputRef.current?.click()}
-              className={cn(
-                "w-full aspect-video border-2 border-dashed border-white/5 transition-all cursor-pointer overflow-hidden flex flex-col items-center justify-center relative hover:border-neon hover:bg-neon/5",
-                image && "border-solid border-white/10"
-              )}
-            >
-              {image ? (
-                <>
-                  <img src={image} className="w-full h-full object-cover grayscale opacity-50 contrast-125" alt="Upload" />
-                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                    <p className="text-xs font-display uppercase tracking-widest flex items-center gap-2"><RefreshCcw className="w-4 h-4" /> Reset Frame</p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <Upload className="w-8 h-8 text-white/10 mb-2" />
-                  <p className="text-[10px] font-mono uppercase tracking-widest text-white/20">Binary_Stream_Input</p>
-                </>
-              )}
-            </div>
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              onChange={handleImageUpload} 
-              accept="image/*" 
-              className="hidden" 
-            />
-          </div>
-
-          <div className="space-y-4">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-white/30">Movement Parameters</label>
-            <textarea
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="DEFINE_TRAJECTORY..."
-              className="w-full h-24 bg-white/5 border border-white/10 p-5 text-sm font-mono focus:outline-none focus:border-neon transition-all resize-none placeholder:text-white/10"
-            />
-          </div>
-
-          {needsKey ? (
-            <div className="space-y-4">
-              <div className="p-5 border border-neon/20 bg-neon/5 flex gap-4 text-[10px] uppercase font-bold tracking-widest text-neon leading-relaxed">
-                <AlertCircle className="w-5 h-5 shrink-0" />
-                <p>Veo engine requires authentication. Ensure a valid API Key is mapped to the current session.</p>
-              </div>
-              <button
-                onClick={handleOpenKeySelector}
-                className="w-full bg-white text-black h-16 font-display text-xl uppercase tracking-widest hover:bg-neon transition-all active:scale-[0.98]"
-              >
-                Launch Key_Socket
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={handleGenerate}
-              disabled={isGenerating}
-              className="w-full bg-neon text-black h-16 font-display text-xl uppercase tracking-widest hover:bg-white transition-all disabled:opacity-20 active:scale-[0.98]"
-            >
-              {isGenerating ? (
-                <RefreshCcw className="w-6 h-6 animate-spin mx-auto" />
-              ) : (
-                <span>Execute Render</span>
-              )}
-            </button>
-          )}
-
-          <div className="p-6 border border-white/5 bg-white/2 flex gap-4">
-             <Info className="w-4 h-4 text-white/20 shrink-0 mt-0.5" />
-             <p className="text-[10px] font-mono text-white/20 uppercase tracking-widest leading-relaxed">
-               Render time: 60s - 180s. Define trajectory vectors for high-fidelity interpolation.
-             </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Viewing Area */}
-      <div className="flex-1 p-16 flex items-center justify-center bg-[#080808] relative overflow-hidden">
+    <div className="flex flex-col min-h-full max-w-4xl mx-auto pb-48">
+      {/* Video Stage */}
+      <div className="flex-1 flex flex-col items-center justify-center py-8">
         <AnimatePresence mode="wait">
-          {videoUrl ? (
+          {videoUrl || isGenerating ? (
             <motion.div
-              key="video-player"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="relative w-full max-w-5xl flex flex-col"
+              key={videoUrl || 'generating'}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.05 }}
+              className="relative w-full max-w-4xl px-4"
             >
-              <div className="border border-white/10 p-1 bg-white/5">
-                <video 
-                  src={videoUrl} 
-                  controls 
-                  autoPlay 
-                  loop 
-                  className="w-full aspect-video bg-black grayscale group-hover:grayscale-0 transition-all shadow-2xl"
-                />
-              </div>
-              <div className="mt-6 flex justify-between items-center">
-                 <div className="flex flex-col">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-white/30">STREAM_BUFFER</span>
-                    <span className="text-xs font-mono text-neon">COMPLETED_SUCCESSFULLY</span>
-                 </div>
-                 <button 
-                  onClick={() => {
-                    const a = document.createElement('a');
-                    a.href = videoUrl;
-                    a.download = `forge-motion-${Date.now()}.mp4`;
-                    a.click();
-                  }}
-                  className="w-14 h-14 flex items-center justify-center border border-white/10 hover:border-white text-white transition-all"
-                >
-                  <Download className="w-5 h-5" />
-                </button>
+              <div className="bg-white/[0.02] border border-white/5 rounded-3xl overflow-hidden shadow-2xl relative aspect-video">
+                {isGenerating ? (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center space-y-8 bg-[#080808]/80 backdrop-blur-sm z-10">
+                     <div className="w-24 h-24 border-l-2 border-neon animate-[spin_1.5s_linear_infinite] rounded-full" />
+                     <div className="text-center space-y-2">
+                        <span className="text-[10px] font-mono uppercase tracking-[0.4em] text-neon animate-pulse">{progressMsg}</span>
+                        <p className="text-[9px] text-white/20 uppercase tracking-widest">Veo Generation in progress</p>
+                     </div>
+                  </div>
+                ) : (
+                  <div className="group relative">
+                    <video 
+                      src={videoUrl!} 
+                      controls 
+                      autoPlay 
+                      loop 
+                      className="w-full aspect-video bg-black"
+                    />
+                    <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                       <button 
+                        onClick={() => {
+                          const a = document.createElement('a');
+                          a.href = videoUrl!;
+                          a.download = `stj-motion-${Date.now()}.mp4`;
+                          a.click();
+                        }}
+                        className="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center hover:bg-neon transition-all shadow-xl"
+                      >
+                        <Download className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </motion.div>
-          ) : isGenerating ? (
-            <div className="text-center space-y-10">
-              <div className="relative flex justify-center">
-                <div className="w-40 h-40 border-l-2 border-neon animate-[spin_1.5s_linear_infinite]" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Video className="w-10 h-10 text-white/20" />
-                </div>
-              </div>
-              <div className="space-y-4">
-                <p className="font-display text-3xl uppercase tracking-tighter text-white">{progressMsg}</p>
-                <div className="flex justify-center gap-3">
-                  {[0, 1, 2, 3].map(i => (
-                    <motion.div
-                      key={i}
-                      animate={{ scale: [1, 1.5, 1], opacity: [0.3, 1, 0.3] }}
-                      transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
-                      className="w-2 h-2 bg-neon"
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
           ) : (
-            <div className="flex flex-col items-start space-y-8 max-w-md opacity-20 filter grayscale">
-              <div className="w-24 h-24 border border-dashed border-white/20 flex items-center justify-center">
-                 <Video className="w-10 h-10" />
+            <div className="text-center space-y-8 opacity-20 filter grayscale hover:opacity-30 transition-opacity">
+              <div className="w-32 h-32 border border-dashed border-white/20 rounded-full mx-auto flex items-center justify-center">
+                 <Video className="w-12 h-12" />
               </div>
-              <div className="space-y-4">
-                <h4 className="font-display text-5xl uppercase tracking-tighter leading-none">Motion<br />Synthesis.</h4>
-                <p className="text-xs font-mono tracking-widest uppercase leading-relaxed tracking-[0.2em]">Temporal engine ready. Upload source frame and movement vectors to process.</p>
+              <div className="space-y-3">
+                <h2 className="text-5xl font-display uppercase tracking-tighter text-white">Motion Forge.</h2>
+                <p className="text-xs font-mono uppercase tracking-[0.4em]">Temporal artifact synthesizer engine.</p>
               </div>
             </div>
           )}
         </AnimatePresence>
+      </div>
+
+      {/* Controller (ChatGPT style) */}
+      <div className="fixed bottom-12 left-1/2 -translate-x-1/2 w-full max-w-2xl px-6 z-50">
+        <div className="bg-[#151515] border border-white/5 rounded-2xl shadow-2xl p-2">
+          {/* Reference Image Attachment */}
+          <div className="flex items-center gap-4 p-2">
+            <button 
+              onClick={() => fileInputRef.current?.click()}
+              className={cn(
+                "w-14 h-14 rounded-xl border border-dashed border-white/10 flex flex-col items-center justify-center transition-all group overflow-hidden relative",
+                image && "border-solid border-neon/50 bg-neon/10"
+              )}
+            >
+              {image ? (
+                <img src={image} className="w-full h-full object-cover opacity-50" alt="ref" />
+              ) : (
+                <Upload className="w-4 h-4 text-white/20 group-hover:text-neon" />
+              )}
+              {!image && <span className="text-[7px] uppercase font-bold text-white/10 mt-1">Ref</span>}
+            </button>
+            
+            <div className="flex-1 flex flex-col justify-center overflow-hidden">
+               {image && (
+                 <div className="flex items-center gap-2 mb-1">
+                   <span className="text-[9px] font-mono text-neon uppercase">Reference_Locked</span>
+                   <button onClick={() => setImage(null)} className="text-[9px] text-white/20 hover:text-white">× Remove</button>
+                 </div>
+               )}
+               <div className="text-[10px] font-mono opacity-20 uppercase tracking-widest truncate">
+                 {image ? "Reference image active" : "Optional: Add reference image"}
+               </div>
+            </div>
+            
+            <div className="flex items-center gap-2 pr-4 text-[9px] font-mono whitespace-nowrap opacity-20 uppercase tracking-widest text-right">
+              Resolution<br/>720p / 16:9
+            </div>
+          </div>
+
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleImageUpload} 
+            accept="image/*" 
+            className="hidden" 
+          />
+
+          <form 
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleGenerate();
+            }}
+            className="flex items-center gap-2 p-2 border-t border-white/5 mt-2"
+          >
+            <input
+              type="text"
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder="Describe the cinematic motion..."
+              className="flex-1 bg-transparent px-4 py-3 text-sm focus:outline-none placeholder:text-white/10"
+            />
+            {needsKey ? (
+              <button
+                type="button"
+                onClick={handleOpenKeySelector}
+                className="px-4 h-11 bg-neon text-black rounded-xl flex items-center gap-2 font-bold text-[10px] uppercase tracking-widest hover:bg-white transition-all"
+              >
+                <Key className="w-3 h-3" /> Fix Key
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={isGenerating || !prompt}
+                className="w-11 h-11 bg-white text-black rounded-xl flex items-center justify-center hover:bg-neon transition-all disabled:opacity-20 disabled:bg-white/5 disabled:text-white/20"
+              >
+                <Play className="w-4 h-4" />
+              </button>
+            )}
+          </form>
+        </div>
+        <p className="text-center text-[9px] text-white/20 mt-4 uppercase tracking-[0.2em]">Cinematic Rendering may take up to 2 minutes.</p>
       </div>
     </div>
   );

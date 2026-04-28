@@ -68,131 +68,129 @@ export function WritingAssistant() {
   ];
 
   return (
-    <div className="flex flex-col lg:flex-row h-full">
-      {/* Editor Area */}
-      <div className="flex-1 flex flex-col p-10 grid-line-r">
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-3">
-            <div className="w-2 h-2 bg-neon animate-pulse" />
-            <span className="font-display text-sm uppercase tracking-widest text-white/40">Drafting_Session</span>
-          </div>
-          <div className="text-[10px] font-mono text-white/20 uppercase tracking-widest">
-            {content.length} chars / {content.split(/\s+/).filter(Boolean).length} words
-          </div>
-        </div>
-        
-        <textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          placeholder="ENTER TEXT TO PROCESS..."
-          className="flex-1 bg-transparent resize-none focus:outline-none text-2xl leading-relaxed text-white placeholder:text-white/5 font-display uppercase tracking-tight custom-scrollbar"
-        />
-
-        <div className="mt-8 flex flex-wrap gap-4 pt-8 grid-line-t">
-          {suggestions.map((s) => (
-            <button
-              key={s.label}
-              onClick={() => handleGenerate(s.type)}
-              disabled={!content || isGenerating}
-              className="flex items-center gap-3 px-6 py-3 border border-white/10 bg-white/5 hover:bg-neon hover:text-black transition-all hover:border-neon font-display uppercase text-xs tracking-widest disabled:opacity-20"
-            >
-              <s.icon className="w-3.5 h-3.5" />
-              {s.label}
-            </button>
-          ))}
-          <button
-            onClick={() => setContent('')}
-            className="ml-auto w-10 h-10 border border-white/10 flex items-center justify-center text-white/20 hover:text-white transition-colors"
-            title="Clear text"
-          >
-            <RotateCcw className="w-4 h-4" />
-          </button>
-        </div>
+    <div className="flex flex-col min-h-full max-w-2xl mx-auto pb-32">
+      {/* Header Info */}
+      <div className="mb-12 text-center">
+        <h1 className="text-4xl font-display uppercase tracking-tighter mb-4">Theory Lab</h1>
+        <p className="text-white/40 text-sm">Synthesize complex concepts into clear digital insights.</p>
       </div>
 
-      {/* AI Assistant Area */}
-      <div className="w-full lg:w-[450px] flex flex-col bg-[#050505]">
-        <div className="h-20 flex items-center gap-4 px-8 grid-line-b">
-          <div className="text-neon">
-            <Sparkles className="w-5 h-5" />
+      {/* Main Thread */}
+      <div className="space-y-12">
+        {/* User Input Area (The "Document") */}
+        <section className="bg-white/[0.03] border border-white/5 rounded-2xl p-8 relative group">
+          <div className="flex items-center gap-2 mb-4">
+             <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
+             <span className="text-[10px] font-mono text-white/20 uppercase tracking-widest font-bold">Source_Material</span>
           </div>
-          <h3 className="font-display text-xl uppercase tracking-tighter">Assistant Core</h3>
-        </div>
+          <textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder="TYPE OR PASTE YOUR THEORY HERE..."
+            className="w-full bg-transparent resize-none focus:outline-none text-lg leading-relaxed text-white/80 placeholder:text-white/5 font-sans custom-scrollbar min-h-[150px]"
+          />
+          
+          <div className="mt-4 flex items-center justify-end">
+            <button
+              onClick={() => setContent('')}
+              className="text-[10px] font-mono text-white/10 hover:text-white/30 tracking-widest uppercase transition-colors"
+            >
+              /Clear_Buffer
+            </button>
+          </div>
+        </section>
 
-        <div className="flex-1 overflow-y-auto p-10 custom-scrollbar space-y-8">
-          <AnimatePresence mode="wait">
-            {aiResponse || isGenerating ? (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="group relative"
-              >
-                <div className="markdown-body font-sans text-sm leading-8">
+        {/* AI Response Bubble */}
+        <AnimatePresence mode="wait">
+          {(aiResponse || isGenerating) && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="space-y-6"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-neon/10 flex items-center justify-center text-neon border border-neon/20">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <span className="text-[10px] font-mono font-bold tracking-widest uppercase text-neon">Assistant</span>
+              </div>
+
+              <div className="pl-11 pr-4">
+                <div className="markdown-body text-white/80 leading-relaxed font-sans prose prose-invert">
                   <ReactMarkdown>{aiResponse}</ReactMarkdown>
                   {isGenerating && (
                     <motion.span
                       animate={{ opacity: [1, 0, 1] }}
                       transition={{ duration: 0.5, repeat: Infinity }}
-                      className="inline-block w-2 h-4 bg-neon ml-2 translate-y-0.5"
+                      className="inline-block w-1.5 h-4 bg-neon ml-2 translate-y-0.5"
                     />
                   )}
                 </div>
-                
+
                 {aiResponse && !isGenerating && (
-                  <div className="mt-8 flex items-center justify-end">
+                  <div className="mt-8 flex items-center gap-4">
                     <button
                       onClick={() => copyToClipboard(aiResponse)}
                       className={cn(
-                        "flex items-center gap-2 px-4 py-2 border font-display text-[10px] uppercase tracking-widest transition-all",
-                        copied ? "border-white text-white" : "border-white/10 text-white/40 hover:border-neon hover:text-neon"
+                        "flex items-center gap-2 px-4 py-2 rounded-lg border text-[10px] uppercase tracking-widest transition-all",
+                        copied ? "border-white bg-white text-black" : "border-white/10 text-white/40 hover:border-neon hover:text-neon"
                       )}
                     >
                       {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                      {copied ? "Copied" : "Copy Buffer"}
+                      {copied ? "Copied" : "Copy to Clipboard"}
                     </button>
                   </div>
                 )}
-              </motion.div>
-            ) : (
-              <div className="flex flex-col items-start justify-center h-full space-y-6 opacity-20 filter grayscale">
-                <div className="p-6 border border-dashed border-white/20">
-                  <Type className="w-12 h-12" />
-                </div>
-                <div className="space-y-2">
-                  <p className="font-display text-2xl uppercase tracking-tighter">Standby Mode</p>
-                  <p className="text-[10px] font-mono tracking-widest uppercase">Waiting for input stream...</p>
-                </div>
               </div>
-            )}
-          </AnimatePresence>
-          <div ref={responseEndRef} />
-        </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
-        {/* Action Bar */}
-        <div className="p-8 grid-line-t bg-[#0a0a0a]">
+      <div ref={responseEndRef} />
+
+      {/* Floating Prompt Input (ChatGPT Style) */}
+      <div className="fixed bottom-12 left-1/2 -translate-x-1/2 w-full max-w-2xl px-6 z-50">
+        <div className="bg-[#151515] border border-white/5 rounded-2xl shadow-2xl p-2">
+          <div className="flex flex-wrap gap-2 mb-2 p-2">
+            {suggestions.map((s) => (
+              <button
+                key={s.label}
+                onClick={() => handleGenerate(s.type)}
+                disabled={!content || isGenerating}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/5 bg-white/5 hover:bg-white/10 hover:border-white/20 transition-all text-[10px] uppercase font-bold tracking-widest text-white/40 disabled:opacity-20"
+              >
+                <s.icon className="w-3 h-3" />
+                {s.label}
+              </button>
+            ))}
+          </div>
+
           <form 
             onSubmit={(e) => {
               e.preventDefault();
               handleGenerate('general');
             }}
-            className="flex items-center gap-4"
+            className="flex items-center gap-2 p-2"
           >
             <input
               type="text"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="COMMANDS_ONLY..."
-              className="flex-1 bg-transparent border-b border-white/10 px-0 py-3 text-sm font-mono focus:outline-none focus:border-neon transition-all"
+              placeholder="Ask Assistant anything..."
+              className="flex-1 bg-transparent px-4 py-2 text-sm focus:outline-none placeholder:text-white/10"
             />
             <button
               type="submit"
               disabled={!prompt || isGenerating}
-              className="w-12 h-12 bg-white/5 border border-white/10 hover:bg-neon hover:text-black hover:border-neon flex items-center justify-center transition-all disabled:opacity-20"
+              className="w-10 h-10 bg-white text-black rounded-xl flex items-center justify-center hover:bg-neon transition-all disabled:opacity-20 disabled:bg-white/5 disabled:text-white/20"
             >
-              <Send className="w-5 h-5" />
+              <Send className="w-4 h-4" />
             </button>
           </form>
         </div>
+        <p className="text-center text-[9px] text-white/20 mt-4 uppercase tracking-[0.2em]">STJ Studio AI can make mistakes. Verify important info.</p>
       </div>
     </div>
   );
