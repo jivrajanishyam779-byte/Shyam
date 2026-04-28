@@ -73,7 +73,21 @@ export default function App() {
            </div>
            
            <div className="flex items-center gap-2 relative" ref={menuRef}>
-              <button className="hidden sm:flex items-center gap-2 bg-white/5 border border-white/10 px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-white/10 transition-all mr-2">
+              <button 
+                onClick={() => {
+                  if (navigator.share) {
+                    navigator.share({
+                      title: 'STJ.STUDIO',
+                      text: 'Check out this AI synthesis tool!',
+                      url: window.location.href,
+                    });
+                  } else {
+                    navigator.clipboard.writeText(window.location.href);
+                    alert('Link copied to clipboard!');
+                  }
+                }}
+                className="hidden sm:flex items-center gap-2 bg-white/5 border border-white/10 px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-white/10 transition-all mr-2"
+              >
                 <Share2 className="w-3 h-3" /> Share
               </button>
               

@@ -10,9 +10,19 @@ export function ImageGenerator() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [aspectRatio, setAspectRatio] = useState('1:1');
   const [history, setHistory] = useState<string[]>([]);
+  const [needsKey, setNeedsKey] = useState(false);
 
   const handleGenerate = async () => {
     if (!prompt) return;
+
+    // Check for API Key if not provided in environment
+    if (!process.env.GEMINI_API_KEY) {
+      const hasKey = await (window as any).aistudio?.hasSelectedApiKey();
+      if (!hasKey) {
+        setNeedsKey(true);
+        return;
+      }
+    }
 
     setIsGenerating(true);
     setGeneratedImageUrl(null);
@@ -154,13 +164,23 @@ export function ImageGenerator() {
               placeholder="Describe the image you want specialized..."
               className="flex-1 bg-transparent px-4 py-2 text-sm focus:outline-none placeholder:text-white/10"
             />
-            <button
-              type="submit"
-              disabled={!prompt || isGenerating}
-              className="w-10 h-10 bg-white text-black rounded-xl flex items-center justify-center hover:bg-neon transition-all disabled:opacity-20 disabled:bg-white/5 disabled:text-white/20"
-            >
-              <Wand2 className="w-4 h-4" />
-            </button>
+            {needsKey ? (
+              <button
+                type="button"
+                onClick={() => (window as any).aistudio?.openApiKeySelector()}
+                className="h-10 px-4 bg-neon text-black rounded-xl text-[10px] font-bold uppercase tracking-widest flex items-center gap-2"
+              >
+                Set Key
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={!prompt || isGenerating}
+                className="w-10 h-10 bg-white text-black rounded-xl flex items-center justify-center hover:bg-neon transition-all disabled:opacity-20 disabled:bg-white/5 disabled:text-white/20"
+              >
+                <Wand2 className="w-4 h-4" />
+              </button>
+            )}
           </form>
         </div>
         

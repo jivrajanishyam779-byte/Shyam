@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Send, Sparkles, Wand2, Copy, Check, RotateCcw, PenTool, Type, List, FileText, Image as ImageIcon, X, Plus, Info } from 'lucide-react';
+import { Send, Sparkles, Wand2, Copy, Check, RotateCcw, PenTool, Type, List, FileText, Image as ImageIcon, X, Plus, Info, Paperclip, MessageSquarePlus } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { ai, MODELS } from '../lib/gemini';
 import { cn } from '../lib/utils';
@@ -12,6 +12,7 @@ export function WritingAssistant() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [copied, setCopied] = useState(false);
   const [prompt, setPrompt] = useState('');
+  const [needsKey, setNeedsKey] = useState(false);
   const responseEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -37,6 +38,15 @@ export function WritingAssistant() {
   const handleGenerate = async (type: 'improve' | 'expand' | 'summarize' | 'general') => {
     if (!content && type !== 'general' && !attachment) return;
     if (type === 'general' && !prompt && !attachment) return;
+
+    // Check for API Key if not provided in environment
+    if (!process.env.GEMINI_API_KEY) {
+      const hasKey = await (window as any).aistudio?.hasSelectedApiKey();
+      if (!hasKey) {
+        setNeedsKey(true);
+        return;
+      }
+    }
 
     setIsGenerating(true);
     setAiResponse('');
@@ -91,8 +101,25 @@ export function WritingAssistant() {
     { label: 'Summarize', type: 'summarize' as const, icon: List },
   ];
 
+  const clearSession = () => {
+    setContent('');
+    setAttachment(null);
+    setAiResponse('');
+    setPrompt('');
+  };
+
   return (
-    <div className="flex flex-col min-h-full max-w-4xl mx-auto pb-44 px-4 sm:px-10">
+    <div className="flex flex-col min-h-full max-w-4xl mx-auto pb-44 px-4 sm:px-10 relative">
+      {/* New Session Button */}
+      <button 
+        onClick={clearSession}
+        className="fixed top-24 left-10 hidden xl:flex items-center gap-3 p-3 bg-white/5 border border-white/10 rounded-2xl text-white/40 hover:text-neon hover:bg-neon/10 hover:border-neon/30 transition-all group z-10"
+        title="Start New Synthesis"
+      >
+        <Plus className="w-5 h-5" />
+        <span className="text-[10px] font-bold uppercase tracking-widest hidden group-hover:inline">New Lab</span>
+      </button>
+
       {/* Header Info */}
       <div className="mb-12 pt-12 text-center">
         <h1 className="text-5xl font-display uppercase tracking-tighter mb-4 text-white">Theory Lab</h1>
@@ -253,13 +280,25 @@ export function WritingAssistant() {
             }}
             className="flex items-center gap-2 p-2 border-t border-white/5"
           >
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="w-10 h-10 flex items-center justify-center text-white/40 hover:text-white transition-colors"
-            >
-              <Plus className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-10 h-10 flex items-center justify-center text-white/40 hover:text-neon transition-colors group relative"
+                title="Add Image Context"
+              >
+                <Plus className="w-5 h-5" />
+                <span className="absolute -top-10 left-1/2 -translate-x-1/2 bg-white text-black text-[9px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity font-bold uppercase tracking-widest">Add File</span>
+              </button>
+              <button
+                type="button"
+                onClick={clearSession}
+                className="w-10 h-10 flex items-center justify-center text-white/20 hover:text-white transition-colors"
+                title="New Session"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
+            </div>
             <input 
               type="file"
               ref={fileInputRef}
@@ -271,16 +310,26 @@ export function WritingAssistant() {
               type="text"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Ask Assistant anything..."
+              placeholder="Message Assistant..."
               className="flex-1 bg-transparent px-2 py-3 text-sm focus:outline-none placeholder:text-white/10"
             />
-            <button
-              type="submit"
-              disabled={(!prompt && !attachment) || isGenerating}
-              className="w-12 h-12 bg-white text-black rounded-2xl flex items-center justify-center hover:bg-neon transition-all disabled:opacity-20 disabled:bg-white/5 disabled:text-white/20 shadow-xl"
-            >
-              <Send className="w-5 h-5" />
-            </button>
+            {needsKey ? (
+              <button
+                type="button"
+                onClick={() => (window as any).aistudio?.openApiKeySelector()}
+                className="h-10 px-4 bg-neon text-black rounded-xl text-[10px] font-bold uppercase tracking-widest flex items-center gap-2"
+              >
+                Set Key
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={(!prompt && !attachment) || isGenerating}
+                className="w-12 h-12 bg-white text-black rounded-2xl flex items-center justify-center hover:bg-neon transition-all disabled:opacity-20 disabled:bg-white/5 disabled:text-white/20 shadow-xl"
+              >
+                <Send className="w-5 h-5" />
+              </button>
+            )}
           </form>
         </div>
         <p className="text-center text-[9px] text-white/10 mt-6 uppercase tracking-[0.3em]">STJ Studio AI can make mistakes. Verify important info.</p>
