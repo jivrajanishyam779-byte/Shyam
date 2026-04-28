@@ -1,40 +1,52 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { PenLine, Image as ImageIcon, Video, Sparkles, Wand2, Zap, Settings, Menu, X } from 'lucide-react';
+import { PenLine, Image as ImageIcon, Video, Sparkles, Wand2, Zap, Settings, Menu, X, MoreVertical, Share2, Crown } from 'lucide-react';
 import { WritingAssistant } from './components/WritingAssistant';
 import { ImageGenerator } from './components/ImageGenerator';
 import { VideoGenerator } from './components/VideoGenerator';
 import { cn } from './lib/utils';
 
-type Tab = 'writing' | 'image' | 'video' | 'home';
+type Tab = 'writing' | 'image' | 'video';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('writing');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const tabs = [
     { 
       id: 'writing', 
       name: 'Theory Lab', 
       icon: PenLine, 
-      label: 'Summarizer', 
-      index: '01'
+      label: 'Summarizer',
+      desc: 'Synthesize complex theories'
     },
     { 
       id: 'image', 
       name: 'Visuals', 
       icon: ImageIcon, 
-      label: 'Art Forge', 
-      index: '02'
+      label: 'Art Forge',
+      desc: 'Generate visual artifacts'
     },
     { 
       id: 'video', 
       name: 'Motion', 
       icon: Video, 
-      label: 'Forge', 
-      index: '03'
+      label: 'Forge',
+      desc: 'Cinematic temporal sequences'
     },
   ];
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   return (
     <div className="flex h-screen bg-[#080808] text-white font-sans selection:bg-neon selection:text-black overflow-hidden relative">
@@ -43,105 +55,90 @@ export default function App() {
         <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '40px 40px' }} />
       </div>
 
-      {/* Sidebar - ChatGPT Style */}
-      <motion.aside
-        initial={false}
-        animate={{ width: isSidebarOpen ? 280 : 0 }}
-        className="flex flex-col z-50 shrink-0 bg-[#0d0d0d] relative border-r border-white/5"
-      >
-        <div className="h-16 flex items-center px-6 justify-between border-b border-white/5">
-          <button 
-            onClick={() => setActiveTab('home' as any)}
-            className="flex items-center gap-2 font-display text-xl tracking-tighter"
-          >
-            STJ<span className="text-neon">.</span>STUDIO
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-3 py-4 space-y-2 custom-scrollbar">
-          <div className="px-3 mb-2">
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/20">Tools</span>
-          </div>
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as Tab)}
-              className={cn(
-                "w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-200 group relative",
-                activeTab === tab.id ? "bg-white/5 text-white" : "text-white/40 hover:bg-white/[0.02] hover:text-white"
-              )}
-            >
-              <div className={cn(
-                "w-8 h-8 flex items-center justify-center shrink-0 border transition-all duration-300 rounded-md",
-                activeTab === tab.id 
-                  ? "border-neon text-neon bg-neon/10" 
-                  : "border-white/10 text-white/30 group-hover:border-white/30"
-              )}>
-                <tab.icon className="w-4 h-4" />
-              </div>
-
-              <div className="flex flex-col items-start overflow-hidden whitespace-nowrap">
-                <span className="font-medium text-sm tracking-tight">{tab.name}</span>
-              </div>
-            </button>
-          ))}
-
-          <div className="px-3 pt-6 mb-2 mt-4 border-t border-white/5">
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/20">Recent Sessions</span>
-          </div>
-          {/* Placeholder for history */}
-          <div className="space-y-1">
-            {['Quantum Physics Summary', 'App Logo Design', 'Lecture Notes'].map((item, i) => (
-              <button key={i} className="w-full text-left px-3 py-2 text-xs text-white/20 hover:text-white/40 truncate rounded-md hover:bg-white/[0.01]">
-                {item}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="p-4 border-t border-white/5 space-y-2">
-           <button className="w-full flex items-center gap-3 p-3 text-xs text-white/40 hover:text-white transition-colors rounded-lg hover:bg-white/5">
-              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
-                <span className="text-[10px]">SJ</span>
-              </div>
-              <span>Settings</span>
-           </button>
-        </div>
-      </motion.aside>
-
-      {/* Toggle Sidebar Button (Floating) */}
-      {!isSidebarOpen && (
-        <button 
-          onClick={() => setIsSidebarOpen(true)}
-          className="fixed left-4 top-4 z-[60] w-10 h-10 bg-white/5 border border-white/10 flex items-center justify-center hover:bg-neon hover:text-black transition-all"
-        >
-          <Menu className="w-5 h-5" />
-        </button>
-      )}
-
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col relative z-20 overflow-hidden bg-[#080808]">
         {/* Minimalist Header */}
-        <header className="h-16 flex items-center justify-between px-10 border-b border-white/5">
+        <header className="h-16 flex items-center justify-between px-6 border-b border-white/5 bg-[#080808]/50 backdrop-blur-xl z-50">
            <div className="flex items-center gap-4">
               <button 
-                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className={cn("p-2 text-white/30 hover:text-white transition-all hidden md:block", isSidebarOpen && "text-white/60")}
+                onClick={() => setActiveTab('writing')}
+                className="flex items-center gap-2 font-display text-xl tracking-tighter hover:text-neon transition-colors"
               >
-                <Menu className="w-5 h-5" />
+                STJ<span className="text-neon">.</span>STUDIO
               </button>
-              <h2 className="text-sm font-medium text-white/60">
+              <div className="h-4 w-px bg-white/10 mx-2" />
+              <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/40">
                 {tabs.find(t => t.id === activeTab)?.name}
               </h2>
            </div>
            
-           <div className="flex items-center gap-6">
-              <button className="bg-white/5 border border-white/10 px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider hover:bg-white/10 transition-all">
-                Share
+           <div className="flex items-center gap-2 relative" ref={menuRef}>
+              <button className="hidden sm:flex items-center gap-2 bg-white/5 border border-white/10 px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-white/10 transition-all mr-2">
+                <Share2 className="w-3 h-3" /> Share
               </button>
-              <button className="bg-neon text-black px-5 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider hover:bg-white transition-all">
-                Upgrade
+              
+              <button 
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className={cn(
+                  "p-2.5 rounded-lg transition-all border",
+                  isMenuOpen 
+                    ? "bg-neon border-neon text-black" 
+                    : "bg-white/5 border-white/10 text-white/40 hover:text-white"
+                )}
+              >
+                <MoreVertical className="w-5 h-5" />
               </button>
+
+              {/* Dropdown Menu */}
+              <AnimatePresence>
+                {isMenuOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    className="absolute top-full right-0 mt-2 w-64 bg-[#121212] border border-white/10 rounded-2xl shadow-2xl overflow-hidden p-2"
+                  >
+                    <div className="px-3 py-2 mb-1">
+                      <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/20">Select Engine</span>
+                    </div>
+                    {tabs.map((tab) => (
+                      <button
+                        key={tab.id}
+                        onClick={() => {
+                          setActiveTab(tab.id as Tab);
+                          setIsMenuOpen(false);
+                        }}
+                        className={cn(
+                          "w-full flex items-center gap-3 p-3 rounded-xl transition-all group",
+                          activeTab === tab.id ? "bg-white/10 text-neon" : "text-white/40 hover:bg-white/5 hover:text-white"
+                        )}
+                      >
+                        <div className={cn(
+                          "w-8 h-8 flex items-center justify-center rounded-lg border shrink-0 transition-colors",
+                          activeTab === tab.id ? "border-neon/40 bg-neon/10" : "border-white/5 bg-white/5"
+                        )}>
+                          <tab.icon className="w-4 h-4" />
+                        </div>
+                        <div className="flex flex-col items-start overflow-hidden">
+                          <span className="font-medium text-sm">{tab.name}</span>
+                          <span className="text-[9px] text-white/20 uppercase tracking-widest truncate">{tab.label}</span>
+                        </div>
+                      </button>
+                    ))}
+                    
+                    <div className="mt-2 pt-2 border-t border-white/5">
+                      <button className="w-full flex items-center gap-3 p-3 rounded-xl text-white/40 hover:bg-white/5 hover:text-white transition-all">
+                        <Settings className="w-4 h-4" />
+                        <span className="text-sm">Settings</span>
+                      </button>
+                      <button className="w-full flex items-center gap-3 p-3 rounded-xl text-neon bg-neon/5 hover:bg-neon/10 transition-all mt-1">
+                        <Zap className="w-4 h-4" />
+                        <span className="text-sm font-bold uppercase tracking-wider text-[10px]">Upgrade to Pro</span>
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
            </div>
         </header>
 
@@ -150,14 +147,14 @@ export default function App() {
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.3 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
               className="flex-1 overflow-y-auto custom-scrollbar"
             >
-              <div className="max-w-3xl mx-auto w-full h-full px-6 py-12">
-                {activeTab === 'writing' && <WritingAssistant />}
+              {activeTab === 'writing' && <WritingAssistant />}
+              <div className="max-w-5xl mx-auto w-full px-6 py-12">
                 {activeTab === 'image' && <ImageGenerator />}
                 {activeTab === 'video' && <VideoGenerator />}
               </div>
@@ -165,15 +162,14 @@ export default function App() {
           </AnimatePresence>
         </div>
 
-        {/* Status Bar */}
-        <footer className="h-8 flex items-center justify-between px-6 text-[8px] font-mono uppercase tracking-[0.2em] text-white/20 border-t border-white/5">
-          <div className="flex items-center gap-3">
-            <div className="w-1.5 h-1.5 rounded-full bg-neon/40" />
-            <span>ID: {Math.random().toString(36).substring(7).toUpperCase()}</span>
+        {/* Status Bar - Minimal */}
+        <footer className="h-6 flex items-center justify-between px-6 text-[7px] font-mono uppercase tracking-[0.2em] text-white/10 border-t border-white/5 z-40 bg-[#080808]">
+          <div className="flex items-center gap-2">
+            <div className="w-1 h-1 rounded-full bg-neon/20 animate-pulse" />
+            <span>ENGINE_ID: {Math.random().toString(36).substring(7).toUpperCase()}</span>
           </div>
           <div className="flex gap-4">
-            <span>Server: ASIA-SOUTH-1</span>
-            <span className="text-neon/30">Stable v1.0.4</span>
+             <span className="text-neon/20 font-bold">READY // v1.0.4</span>
           </div>
         </footer>
       </main>

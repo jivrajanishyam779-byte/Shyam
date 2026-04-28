@@ -68,34 +68,41 @@ export function WritingAssistant() {
   ];
 
   return (
-    <div className="flex flex-col min-h-full max-w-2xl mx-auto pb-32">
+    <div className="flex flex-col min-h-full max-w-4xl mx-auto pb-44 px-4 sm:px-10">
       {/* Header Info */}
-      <div className="mb-12 text-center">
-        <h1 className="text-4xl font-display uppercase tracking-tighter mb-4">Theory Lab</h1>
-        <p className="text-white/40 text-sm">Synthesize complex concepts into clear digital insights.</p>
+      <div className="mb-12 pt-12 text-center">
+        <h1 className="text-5xl font-display uppercase tracking-tighter mb-4 text-white">Theory Lab</h1>
+        <p className="text-white/40 text-sm font-sans max-w-md mx-auto leading-relaxed">Synthesize complex digital concepts into crystalline structural summaries.</p>
       </div>
 
       {/* Main Thread */}
-      <div className="space-y-12">
+      <div className="space-y-16">
         {/* User Input Area (The "Document") */}
-        <section className="bg-white/[0.03] border border-white/5 rounded-2xl p-8 relative group">
-          <div className="flex items-center gap-2 mb-4">
-             <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
-             <span className="text-[10px] font-mono text-white/20 uppercase tracking-widest font-bold">Source_Material</span>
+        <section className="bg-white/[0.02] border border-white/5 rounded-3xl p-10 relative group hover:bg-white/[0.03] transition-all duration-500">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+               <div className="w-2 h-2 rounded-full bg-white/10" />
+               <span className="text-[10px] font-mono text-white/20 uppercase tracking-[0.3em] font-bold">Binary_Inbound</span>
+            </div>
+            {content && (
+              <span className="text-[9px] font-mono text-white/10 uppercase tracking-widest">
+                {content.length} chars / {content.split(/\s+/).filter(Boolean).length} words
+              </span>
+            )}
           </div>
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            placeholder="TYPE OR PASTE YOUR THEORY HERE..."
-            className="w-full bg-transparent resize-none focus:outline-none text-lg leading-relaxed text-white/80 placeholder:text-white/5 font-sans custom-scrollbar min-h-[150px]"
+            placeholder="Type or paste your theoretical core here..."
+            className="w-full bg-transparent resize-none focus:outline-none text-xl leading-relaxed text-white/90 placeholder:text-white/5 font-sans custom-scrollbar min-h-[200px]"
           />
           
-          <div className="mt-4 flex items-center justify-end">
+          <div className="mt-6 flex items-center justify-end">
             <button
               onClick={() => setContent('')}
-              className="text-[10px] font-mono text-white/10 hover:text-white/30 tracking-widest uppercase transition-colors"
+              className="text-[9px] font-mono text-white/5 hover:text-neon/40 tracking-[0.4em] uppercase transition-all duration-300"
             >
-              /Clear_Buffer
+              [ Flush_Buffer ]
             </button>
           </div>
         </section>
@@ -107,38 +114,43 @@ export function WritingAssistant() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="space-y-6"
+              className="space-y-8"
             >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-neon/10 flex items-center justify-center text-neon border border-neon/20">
-                  <Sparkles className="w-4 h-4" />
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-2xl bg-neon/5 flex items-center justify-center text-neon border border-neon/10">
+                  <div className="text-neon">
+                    <Sparkles className="w-5 h-5" />
+                  </div>
                 </div>
-                <span className="text-[10px] font-mono font-bold tracking-widest uppercase text-neon">Assistant</span>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-mono font-bold tracking-[0.3em] uppercase text-neon">Assistant_Core</span>
+                  <span className="text-[8px] font-mono text-white/20 uppercase">Processing completed</span>
+                </div>
               </div>
 
-              <div className="pl-11 pr-4">
-                <div className="markdown-body text-white/80 leading-relaxed font-sans prose prose-invert">
+              <div className="pl-14 pr-4">
+                <div className="markdown-body text-white/80 leading-relaxed font-sans prose prose-invert max-w-none text-lg">
                   <ReactMarkdown>{aiResponse}</ReactMarkdown>
                   {isGenerating && (
                     <motion.span
-                      animate={{ opacity: [1, 0, 1] }}
-                      transition={{ duration: 0.5, repeat: Infinity }}
-                      className="inline-block w-1.5 h-4 bg-neon ml-2 translate-y-0.5"
+                      animate={{ opacity: [0, 1, 0] }}
+                      transition={{ duration: 0.8, repeat: Infinity }}
+                      className="inline-block w-2 h-5 bg-neon ml-2 translate-y-1"
                     />
                   )}
                 </div>
 
                 {aiResponse && !isGenerating && (
-                  <div className="mt-8 flex items-center gap-4">
+                  <div className="mt-12 flex items-center gap-4 pt-8 border-t border-white/5">
                     <button
                       onClick={() => copyToClipboard(aiResponse)}
                       className={cn(
-                        "flex items-center gap-2 px-4 py-2 rounded-lg border text-[10px] uppercase tracking-widest transition-all",
-                        copied ? "border-white bg-white text-black" : "border-white/10 text-white/40 hover:border-neon hover:text-neon"
+                        "flex items-center gap-3 px-6 py-2.5 rounded-full border text-[10px] font-bold uppercase tracking-[0.2em] transition-all",
+                        copied ? "border-neon bg-neon text-black shadow-[0_0_20px_rgba(223,255,0,0.2)]" : "border-white/10 text-white/40 hover:border-white hover:text-white"
                       )}
                     >
-                      {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                      {copied ? "Copied" : "Copy to Clipboard"}
+                      {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                      {copied ? "Synthesized" : "Copy to Analytics"}
                     </button>
                   </div>
                 )}
@@ -151,17 +163,17 @@ export function WritingAssistant() {
       <div ref={responseEndRef} />
 
       {/* Floating Prompt Input (ChatGPT Style) */}
-      <div className="fixed bottom-12 left-1/2 -translate-x-1/2 w-full max-w-2xl px-6 z-50">
-        <div className="bg-[#151515] border border-white/5 rounded-2xl shadow-2xl p-2">
-          <div className="flex flex-wrap gap-2 mb-2 p-2">
+      <div className="fixed bottom-10 left-1/2 -translate-x-1/2 w-full max-w-3xl px-6 z-50">
+        <div className="bg-[#121212]/90 backdrop-blur-2xl border border-white/5 rounded-3xl shadow-[0_32px_64px_-16px_rgba(0,0,0,0.5)] p-2">
+          <div className="flex flex-wrap gap-2 mb-2 p-2 focus-within:opacity-100 opacity-60 hover:opacity-100 transition-opacity">
             {suggestions.map((s) => (
               <button
                 key={s.label}
                 onClick={() => handleGenerate(s.type)}
                 disabled={!content || isGenerating}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/5 bg-white/5 hover:bg-white/10 hover:border-white/20 transition-all text-[10px] uppercase font-bold tracking-widest text-white/40 disabled:opacity-20"
+                className="flex items-center gap-2 px-4 py-2 rounded-full border border-white/5 bg-white/5 hover:bg-white/10 hover:border-white/20 transition-all text-[10px] uppercase font-bold tracking-widest text-white/40 disabled:opacity-20"
               >
-                <s.icon className="w-3 h-3" />
+                <s.icon className="w-3.5 h-3.5" />
                 {s.label}
               </button>
             ))}
@@ -172,25 +184,25 @@ export function WritingAssistant() {
               e.preventDefault();
               handleGenerate('general');
             }}
-            className="flex items-center gap-2 p-2"
+            className="flex items-center gap-2 p-2 border-t border-white/5"
           >
             <input
               type="text"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="Ask Assistant anything..."
-              className="flex-1 bg-transparent px-4 py-2 text-sm focus:outline-none placeholder:text-white/10"
+              className="flex-1 bg-transparent px-4 py-3 text-sm focus:outline-none placeholder:text-white/10"
             />
             <button
               type="submit"
               disabled={!prompt || isGenerating}
-              className="w-10 h-10 bg-white text-black rounded-xl flex items-center justify-center hover:bg-neon transition-all disabled:opacity-20 disabled:bg-white/5 disabled:text-white/20"
+              className="w-12 h-12 bg-white text-black rounded-2xl flex items-center justify-center hover:bg-neon transition-all disabled:opacity-20 disabled:bg-white/5 disabled:text-white/20 shadow-xl"
             >
-              <Send className="w-4 h-4" />
+              <Send className="w-5 h-5" />
             </button>
           </form>
         </div>
-        <p className="text-center text-[9px] text-white/20 mt-4 uppercase tracking-[0.2em]">STJ Studio AI can make mistakes. Verify important info.</p>
+        <p className="text-center text-[9px] text-white/10 mt-6 uppercase tracking-[0.3em]">STJ Studio AI can make mistakes. Verify important info.</p>
       </div>
     </div>
   );
