@@ -1,17 +1,19 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Send, Sparkles, Wand2, Copy, Check, RotateCcw, PenTool, Type, List, FileText } from 'lucide-react';
+import { Send, Sparkles, Wand2, Copy, Check, RotateCcw, PenTool, Type, List, FileText, Image as ImageIcon, X, Plus, Info } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { ai, MODELS } from '../lib/gemini';
 import { cn } from '../lib/utils';
 
 export function WritingAssistant() {
   const [content, setContent] = useState('');
+  const [attachment, setAttachment] = useState<string | null>(null);
   const [aiResponse, setAiResponse] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [copied, setCopied] = useState(false);
   const [prompt, setPrompt] = useState('');
   const responseEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {
     responseEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -21,9 +23,20 @@ export function WritingAssistant() {
     scrollToBottom();
   }, [aiResponse]);
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAttachment(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleGenerate = async (type: 'improve' | 'expand' | 'summarize' | 'general') => {
-    if (!content && type !== 'general') return;
-    if (type === 'general' && !prompt) return;
+    if (!content && type !== 'general' && !attachment) return;
+    if (type === 'general' && !prompt && !attachment) return;
 
     setIsGenerating(true);
     setAiResponse('');
@@ -33,13 +46,24 @@ export function WritingAssistant() {
       if (type === 'improve') finalPrompt = `Improve the following text for clarity, engagement, and professional tone:\n\n${content}`;
       else if (type === 'expand') finalPrompt = `Expand on this text to provide more detail and context, maintaining the same tone:\n\n${content}`;
       else if (type === 'summarize') finalPrompt = `Summarize the following text into concise bullet points:\n\n${content}`;
-      else finalPrompt = prompt;
+      else finalPrompt = prompt || "Analyze this image and describe its core theoretical concepts.";
+
+      const contents: any[] = [finalPrompt];
+      
+      if (attachment) {
+        contents.push({
+          inlineData: {
+            mimeType: attachment.split(';')[0].split(':')[1],
+            data: attachment.split(',')[1]
+          }
+        });
+      }
 
       const responseStream = await ai.models.generateContentStream({
         model: MODELS.WRITING,
-        contents: finalPrompt,
+        contents,
         config: {
-          systemInstruction: "You are a professional writing assistant. Provide helpful, concise, and high-quality writing suggestions, completions, and edits. Use markdown for better formatting.",
+          systemInstruction: "You are a professional writing assistant and theoretical synthesizer. Provide helpful, concise, and high-quality analysis and edits. Use markdown for better formatting.",
         }
       });
 
@@ -77,6 +101,34 @@ export function WritingAssistant() {
 
       {/* Main Thread */}
       <div className="space-y-16">
+        {/* Empty State Orientation */}
+        {!content && !aiResponse && !attachment && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="grid grid-cols-1 md:grid-cols-2 gap-4"
+          >
+            <div className="p-6 bg-white/[0.02] border border-white/5 rounded-2xl flex flex-col items-start gap-4">
+               <div className="w-8 h-8 rounded-full bg-neon/10 flex items-center justify-center text-neon">
+                  <Info className="w-4 h-4" />
+               </div>
+               <div className="space-y-1">
+                 <h4 className="text-sm font-bold uppercase tracking-wider">Theory Synthesis</h4>
+                 <p className="text-xs text-white/30 leading-relaxed">Paste complex text above or upload a diagram. Select synthesis mode from the toolbar to begin extraction.</p>
+               </div>
+            </div>
+            <div className="p-6 bg-white/[0.02] border border-white/5 rounded-2xl flex flex-col items-start gap-4">
+               <div className="w-8 h-8 rounded-full bg-neon/10 flex items-center justify-center text-neon">
+                  <RotateCcw className="w-4 h-4" />
+               </div>
+               <div className="space-y-1">
+                 <h4 className="text-sm font-bold uppercase tracking-wider">Engine Switch</h4>
+                 <p className="text-xs text-white/30 leading-relaxed">Access the top-right menu to switch between Writing, Image Generation, or Video Synthesis engines.</p>
+               </div>
+            </div>
+          </motion.div>
+        )}
+
         {/* User Input Area (The "Document") */}
         <section className="bg-white/[0.02] border border-white/5 rounded-3xl p-10 relative group hover:bg-white/[0.03] transition-all duration-500">
           <div className="flex items-center justify-between mb-6">
@@ -165,12 +217,27 @@ export function WritingAssistant() {
       {/* Floating Prompt Input (ChatGPT Style) */}
       <div className="fixed bottom-10 left-1/2 -translate-x-1/2 w-full max-w-3xl px-6 z-50">
         <div className="bg-[#121212]/90 backdrop-blur-2xl border border-white/5 rounded-3xl shadow-[0_32px_64px_-16px_rgba(0,0,0,0.5)] p-2">
+          {attachment && (
+            <div className="px-4 py-2 border-b border-white/5 flex items-center gap-3">
+               <div className="relative w-12 h-12 rounded-lg overflow-hidden border border-white/10">
+                 <img src={attachment} className="w-full h-full object-cover" alt="attachment" />
+                 <button 
+                  onClick={() => setAttachment(null)}
+                  className="absolute top-0 right-0 p-0.5 bg-black/60 text-white hover:text-neon"
+                 >
+                   <X className="w-3 h-3" />
+                 </button>
+               </div>
+               <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest">Image context attached</span>
+            </div>
+          )}
+
           <div className="flex flex-wrap gap-2 mb-2 p-2 focus-within:opacity-100 opacity-60 hover:opacity-100 transition-opacity">
             {suggestions.map((s) => (
               <button
                 key={s.label}
                 onClick={() => handleGenerate(s.type)}
-                disabled={!content || isGenerating}
+                disabled={(!content && !attachment) || isGenerating}
                 className="flex items-center gap-2 px-4 py-2 rounded-full border border-white/5 bg-white/5 hover:bg-white/10 hover:border-white/20 transition-all text-[10px] uppercase font-bold tracking-widest text-white/40 disabled:opacity-20"
               >
                 <s.icon className="w-3.5 h-3.5" />
@@ -186,16 +253,30 @@ export function WritingAssistant() {
             }}
             className="flex items-center gap-2 p-2 border-t border-white/5"
           >
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="w-10 h-10 flex items-center justify-center text-white/40 hover:text-white transition-colors"
+            >
+              <Plus className="w-5 h-5" />
+            </button>
+            <input 
+              type="file"
+              ref={fileInputRef}
+              onChange={handleImageUpload}
+              accept="image/*"
+              className="hidden"
+            />
             <input
               type="text"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="Ask Assistant anything..."
-              className="flex-1 bg-transparent px-4 py-3 text-sm focus:outline-none placeholder:text-white/10"
+              className="flex-1 bg-transparent px-2 py-3 text-sm focus:outline-none placeholder:text-white/10"
             />
             <button
               type="submit"
-              disabled={!prompt || isGenerating}
+              disabled={(!prompt && !attachment) || isGenerating}
               className="w-12 h-12 bg-white text-black rounded-2xl flex items-center justify-center hover:bg-neon transition-all disabled:opacity-20 disabled:bg-white/5 disabled:text-white/20 shadow-xl"
             >
               <Send className="w-5 h-5" />
