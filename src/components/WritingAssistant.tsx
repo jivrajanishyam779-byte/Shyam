@@ -2,17 +2,27 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Send, Sparkles, Wand2, Copy, Check, RotateCcw, PenTool, Type, List, FileText, Image as ImageIcon, X, Plus, Info, Paperclip, MessageSquarePlus } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { ai, MODELS } from '../lib/gemini';
+import { MODELS } from '../lib/gemini';
 import { cn } from '../lib/utils';
 
-export function WritingAssistant() {
+interface WritingAssistantProps {
+  mode: 'writing' | 'logic' | 'research';
+}
+
+interface Message {
+  role: 'user' | 'assistant';
+  content: string;
+  attachment?: string | null;
+  type?: 'general' | 'improve' | 'expand' | 'summarize';
+}
+
+export function WritingAssistant({ mode }: WritingAssistantProps) {
+  const [messages, setMessages] = useState<Message[]>([]);
   const [content, setContent] = useState('');
   const [attachment, setAttachment] = useState<string | null>(null);
-  const [aiResponse, setAiResponse] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [prompt, setPrompt] = useState('');
-  const [needsKey, setNeedsKey] = useState(false);
   const responseEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -22,7 +32,36 @@ export function WritingAssistant() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [aiResponse]);
+  }, [messages, isGenerating]);
+
+  const modeConfig = {
+    writing: {
+      title: 'Theory Lab',
+      desc: 'Synthesize complex digital concepts into crystalline structural summaries.',
+      instruction: "You are a professional writing assistant and theoretical synthesizer. Provide helpful, concise, and high-quality analysis and edits. Use markdown for better formatting.",
+      placeholder: "Type or paste your theoretical core here...",
+      emptyLabel: "Theory Synthesis",
+      emptyDesc: "Paste complex text above or upload a diagram. Select synthesis mode from the toolbar to begin extraction."
+    },
+    logic: {
+      title: 'Logic Forge',
+      desc: 'Architectural structural logic and binary problem solving.',
+      instruction: "You are an expert system architect and logic engineer. Help build robust structures, write clean code, and solve complex logical puzzles. Be precise and technical.",
+      placeholder: "Describe the architectural logic or code snippet you need...",
+      emptyLabel: "Logic Engineering",
+      emptyDesc: "Input a technical problem or code fragment. Force structural integrity through binary logic."
+    },
+    research: {
+      title: 'Deep Search',
+      desc: 'Explorer of hidden connections and technical deep dives.',
+      instruction: "You are a high-level research explorer. Dig deep into subjects, find connections, and provide comprehensive insights. Use a structured, investigative tone.",
+      placeholder: "What subject shall we deep dive into?",
+      emptyLabel: "Deep Investigation",
+      emptyDesc: "Submit a topic for exploration. Uncover technical layers and hidden systemic relations."
+    }
+  };
+
+  const currentMode = modeConfig[mode];
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -35,28 +74,32 @@ export function WritingAssistant() {
     }
   };
 
-  const handleGenerate = async (type: 'improve' | 'expand' | 'summarize' | 'general') => {
-    if (!content && type !== 'general' && !attachment) return;
-    if (type === 'general' && !prompt && !attachment) return;
+  const handleGenerate = async (type: 'improve' | 'expand' | 'summarize' | 'general' = 'general') => {
+    const userQuery = type === 'general' ? prompt : `Action: ${type}`;
+    if (!userQuery && !attachment && !content) return;
 
-    // Check for API Key if not provided in environment
-    if (!process.env.GEMINI_API_KEY) {
-      const hasKey = await (window as any).aistudio?.hasSelectedApiKey();
-      if (!hasKey) {
-        setNeedsKey(true);
-        return;
-      }
-    }
+    const newUserMessage: Message = {
+      role: 'user',
+      content: userQuery || (content ? `Using Source Material: ${content.substring(0, 50)}...` : "Analyze this context"),
+      attachment: attachment,
+      type
+    };
 
+    setMessages(prev => [...prev, newUserMessage]);
     setIsGenerating(true);
-    setAiResponse('');
+    setPrompt('');
+    
+    // Use a reference index for the new assistant message
+    const currentMessagesCount = messages.length;
+    
+    setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
 
     try {
       let finalPrompt = '';
-      if (type === 'improve') finalPrompt = `Improve the following text for clarity, engagement, and professional tone:\n\n${content}`;
-      else if (type === 'expand') finalPrompt = `Expand on this text to provide more detail and context, maintaining the same tone:\n\n${content}`;
-      else if (type === 'summarize') finalPrompt = `Summarize the following text into concise bullet points:\n\n${content}`;
-      else finalPrompt = prompt || "Analyze this image and describe its core theoretical concepts.";
+      if (type === 'improve') finalPrompt = `Improve the following for clarity and professional tone:\n\n${content}`;
+      else if (type === 'expand') finalPrompt = `Provide more detail and depth for the following:\n\n${content}`;
+      else if (type === 'summarize') finalPrompt = `Synthesize this into core essence and key points:\n\n${content}`;
+      else finalPrompt = userQuery;
 
       const contents: any[] = [finalPrompt];
       
@@ -69,205 +112,227 @@ export function WritingAssistant() {
         });
       }
 
-      const responseStream = await ai.models.generateContentStream({
-        model: MODELS.WRITING,
-        contents,
-        config: {
-          systemInstruction: "You are a professional writing assistant and theoretical synthesizer. Provide helpful, concise, and high-quality analysis and edits. Use markdown for better formatting.",
-        }
+      if (content && type !== 'general') {
+        contents.unshift(`Context Material:\n${content}\n\nTask:`);
+      } else if (content) {
+        contents.unshift(`Project Background:\n${content}\n\nQuestion:`);
+      }
+
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents,
+          systemInstruction: currentMode.instruction,
+          model: MODELS.WRITING
+        }),
       });
 
-      for await (const chunk of responseStream) {
-        setAiResponse(prev => prev + (chunk.text || ''));
+      if (!response.ok) {
+        throw new Error('Server integration failure');
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let fullText = '';
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value);
+          fullText += chunk;
+          setMessages(prev => {
+            const updated = [...prev];
+            const assistantIndex = currentMessagesCount + 1;
+            if (updated[assistantIndex]) {
+              updated[assistantIndex] = { role: 'assistant', content: fullText };
+            }
+            return updated;
+          });
+        }
       }
     } catch (error) {
-      console.error('Error generating content:', error);
-      setAiResponse('Sorry, I encountered an error while writing. Please try again.');
+      console.error('Error:', error);
+      setMessages(prev => {
+        const updated = [...prev];
+        const assistantIndex = currentMessagesCount + 1;
+        if (updated[assistantIndex]) {
+           updated[assistantIndex] = { role: 'assistant', content: 'Connection failure. Please verify your connection and try again.' };
+        }
+        return updated;
+      });
     } finally {
       setIsGenerating(false);
-      setPrompt('');
+      setAttachment(null);
     }
   };
 
-  const copyToClipboard = (text: string) => {
+  const copyToClipboard = (text: string, index: number) => {
     navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setCopiedIndex(index);
+    setTimeout(() => setCopiedIndex(null), 2000);
   };
 
   const suggestions = [
-    { label: 'Improve Style', type: 'improve' as const, icon: Wand2 },
-    { label: 'Expand Content', type: 'expand' as const, icon: Sparkles },
-    { label: 'Summarize', type: 'summarize' as const, icon: List },
+    { label: 'Synthesize', type: 'summarize' as const, icon: List },
+    { label: 'Refine', type: 'improve' as const, icon: Wand2 },
+    { label: 'Expand', type: 'expand' as const, icon: Sparkles },
   ];
 
   const clearSession = () => {
     setContent('');
     setAttachment(null);
-    setAiResponse('');
+    setMessages([]);
     setPrompt('');
   };
 
   return (
-    <div className="flex flex-col min-h-full max-w-4xl mx-auto pb-44 px-4 sm:px-10 relative">
-      {/* New Session Button */}
-      <button 
-        onClick={clearSession}
-        className="fixed top-24 left-10 hidden xl:flex items-center gap-3 p-3 bg-white/5 border border-white/10 rounded-2xl text-white/40 hover:text-neon hover:bg-neon/10 hover:border-neon/30 transition-all group z-10"
-        title="Start New Synthesis"
-      >
-        <Plus className="w-5 h-5" />
-        <span className="text-[10px] font-bold uppercase tracking-widest hidden group-hover:inline">New Lab</span>
-      </button>
-
-      {/* Header Info */}
-      <div className="mb-12 pt-12 text-center">
-        <h1 className="text-5xl font-display uppercase tracking-tighter mb-4 text-white">Theory Lab</h1>
-        <p className="text-white/40 text-sm font-sans max-w-md mx-auto leading-relaxed">Synthesize complex digital concepts into crystalline structural summaries.</p>
+    <div className="flex flex-col h-full max-w-4xl mx-auto relative bg-[#080808]">
+      {/* Header Info - ChatGPT Style */}
+      <div className="flex flex-col items-center justify-center pt-20 pb-12 px-6">
+        <h1 className="text-4xl font-display uppercase tracking-widest mb-3 text-white/90">{currentMode.title}</h1>
+        <p className="text-white/30 text-xs font-mono tracking-widest max-w-sm text-center uppercase leading-relaxed">{currentMode.desc}</p>
       </div>
 
-      {/* Main Thread */}
-      <div className="space-y-16">
-        {/* Empty State Orientation */}
-        {!content && !aiResponse && !attachment && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="grid grid-cols-1 md:grid-cols-2 gap-4"
-          >
-            <div className="p-6 bg-white/[0.02] border border-white/5 rounded-2xl flex flex-col items-start gap-4">
-               <div className="w-8 h-8 rounded-full bg-neon/10 flex items-center justify-center text-neon">
-                  <Info className="w-4 h-4" />
-               </div>
-               <div className="space-y-1">
-                 <h4 className="text-sm font-bold uppercase tracking-wider">Theory Synthesis</h4>
-                 <p className="text-xs text-white/30 leading-relaxed">Paste complex text above or upload a diagram. Select synthesis mode from the toolbar to begin extraction.</p>
-               </div>
-            </div>
-            <div className="p-6 bg-white/[0.02] border border-white/5 rounded-2xl flex flex-col items-start gap-4">
-               <div className="w-8 h-8 rounded-full bg-neon/10 flex items-center justify-center text-neon">
-                  <RotateCcw className="w-4 h-4" />
-               </div>
-               <div className="space-y-1">
-                 <h4 className="text-sm font-bold uppercase tracking-wider">Engine Switch</h4>
-                 <p className="text-xs text-white/30 leading-relaxed">Access the top-right menu to switch between Writing, Image Generation, or Video Synthesis engines.</p>
-               </div>
-            </div>
-          </motion.div>
-        )}
-
-        {/* User Input Area (The "Document") */}
-        <section className="bg-white/[0.02] border border-white/5 rounded-3xl p-10 relative group hover:bg-white/[0.03] transition-all duration-500">
-          <div className="flex items-center justify-between mb-6">
+      {/* Main Conversation Thread */}
+      <div className="flex-1 overflow-y-auto px-4 sm:px-10 space-y-12 pb-56 custom-scrollbar">
+        {/* Persistent Context Block */}
+        <section className="bg-white/[0.02] border border-white/5 rounded-3xl p-8 relative group hover:bg-white/[0.03] transition-all duration-500">
+          <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-               <div className="w-2 h-2 rounded-full bg-white/10" />
-               <span className="text-[10px] font-mono text-white/20 uppercase tracking-[0.3em] font-bold">Binary_Inbound</span>
+               <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
+               <span className="text-[9px] font-mono text-white/30 uppercase tracking-[0.4em] font-bold">Base_Context</span>
             </div>
-            {content && (
-              <span className="text-[9px] font-mono text-white/10 uppercase tracking-widest">
-                {content.length} chars / {content.split(/\s+/).filter(Boolean).length} words
-              </span>
-            )}
           </div>
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            placeholder="Type or paste your theoretical core here..."
-            className="w-full bg-transparent resize-none focus:outline-none text-xl leading-relaxed text-white/90 placeholder:text-white/5 font-sans custom-scrollbar min-h-[200px]"
+            placeholder={currentMode.placeholder}
+            className="w-full bg-transparent resize-none focus:outline-none text-base leading-relaxed text-white/70 placeholder:text-white/5 font-sans min-h-[120px]"
           />
-          
-          <div className="mt-6 flex items-center justify-end">
-            <button
-              onClick={() => setContent('')}
-              className="text-[9px] font-mono text-white/5 hover:text-neon/40 tracking-[0.4em] uppercase transition-all duration-300"
-            >
-              [ Flush_Buffer ]
-            </button>
-          </div>
         </section>
 
-        {/* AI Response Bubble */}
-        <AnimatePresence mode="wait">
-          {(aiResponse || isGenerating) && (
+        {/* Message History */}
+        <div className="space-y-12">
+          {messages.map((msg, idx) => (
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              key={idx}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="space-y-8"
+              className={cn(
+                "flex flex-col gap-4",
+                msg.role === 'user' ? "items-end" : "items-start"
+              )}
             >
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-2xl bg-neon/5 flex items-center justify-center text-neon border border-neon/10">
-                  <div className="text-neon">
-                    <Sparkles className="w-5 h-5" />
-                  </div>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-mono font-bold tracking-[0.3em] uppercase text-neon">Assistant_Core</span>
-                  <span className="text-[8px] font-mono text-white/20 uppercase">Processing completed</span>
-                </div>
-              </div>
-
-              <div className="pl-14 pr-4">
-                <div className="markdown-body text-white/80 leading-relaxed font-sans prose prose-invert max-w-none text-lg">
-                  <ReactMarkdown>{aiResponse}</ReactMarkdown>
-                  {isGenerating && (
-                    <motion.span
-                      animate={{ opacity: [0, 1, 0] }}
-                      transition={{ duration: 0.8, repeat: Infinity }}
-                      className="inline-block w-2 h-5 bg-neon ml-2 translate-y-1"
-                    />
-                  )}
-                </div>
-
-                {aiResponse && !isGenerating && (
-                  <div className="mt-12 flex items-center gap-4 pt-8 border-t border-white/5">
-                    <button
-                      onClick={() => copyToClipboard(aiResponse)}
-                      className={cn(
-                        "flex items-center gap-3 px-6 py-2.5 rounded-full border text-[10px] font-bold uppercase tracking-[0.2em] transition-all",
-                        copied ? "border-neon bg-neon text-black shadow-[0_0_20px_rgba(223,255,0,0.2)]" : "border-white/10 text-white/40 hover:border-white hover:text-white"
-                      )}
-                    >
-                      {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                      {copied ? "Synthesized" : "Copy to Analytics"}
-                    </button>
+              <div className={cn(
+                "max-w-[85%] px-6 py-4 rounded-2xl text-sm leading-relaxed",
+                msg.role === 'user' 
+                  ? "bg-white/[0.05] border border-white/10 text-white/80" 
+                  : "bg-transparent text-white/90"
+              )}>
+                {msg.attachment && (
+                  <div className="mb-4 w-32 h-32 rounded-lg overflow-hidden border border-white/10">
+                    <img src={msg.attachment} alt="Context" className="w-full h-full object-cover" />
                   </div>
                 )}
+                {msg.role === 'assistant' ? (
+                  <div className="prose prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-pre:bg-white/5 prose-pre:border prose-pre:border-white/10">
+                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    {isGenerating && idx === messages.length - 1 && (
+                      <motion.span
+                        animate={{ opacity: [0, 1, 0] }}
+                        transition={{ duration: 0.8, repeat: Infinity }}
+                        className="inline-block w-1.5 h-4 bg-neon ml-1 translate-y-0.5"
+                      />
+                    )}
+                  </div>
+                ) : (
+                  <p className="whitespace-pre-wrap">{msg.content}</p>
+                )}
               </div>
+
+              {msg.role === 'assistant' && msg.content && (
+                <div className="flex items-center gap-3 pl-2">
+                  <button
+                    onClick={() => copyToClipboard(msg.content, idx)}
+                    className="p-2 text-white/20 hover:text-white transition-colors"
+                  >
+                    {copiedIndex === idx ? <Check className="w-3 h-3 text-neon" /> : <Copy className="w-3 h-3" />}
+                  </button>
+                </div>
+              )}
             </motion.div>
+          ))}
+          
+          {messages.length === 0 && (
+             <div className="flex flex-col items-center justify-center pt-12 pb-32 px-6 text-center">
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="w-16 h-16 rounded-full bg-white/[0.03] border border-white/5 flex items-center justify-center mb-8 relative"
+                >
+                  <div className="absolute inset-0 rounded-full bg-neon/10 animate-ping opacity-20" />
+                  <Sparkles className="w-6 h-6 text-neon" />
+                </motion.div>
+                
+                <h3 className="text-xl font-display uppercase tracking-[0.2em] mb-3 text-white/80">{currentMode.emptyLabel}</h3>
+                <p className="text-xs text-white/30 max-w-sm font-mono tracking-widest uppercase mb-12">{currentMode.emptyDesc}</p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg w-full">
+                  {[
+                    { title: "Deep Dive", prompt: "Explain the systemic architecture of..." },
+                    { title: "Structural Analysis", prompt: "Evaluate the logic behind..." },
+                    { title: "Theoretical Core", prompt: "Synthesize the fundamental principles of..." },
+                    { title: "Rapid Refinement", prompt: "Refactor this concept for clarity:" }
+                  ].map((starter, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setPrompt(starter.prompt)}
+                      className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl text-left hover:bg-white/[0.05] hover:border-white/10 transition-all group"
+                    >
+                      <h4 className="text-[10px] font-bold uppercase tracking-widest text-white/20 group-hover:text-neon transition-colors mb-1">{starter.title}</h4>
+                      <p className="text-[10px] text-white/40 leading-relaxed font-mono">{starter.prompt}</p>
+                    </button>
+                  ))}
+                </div>
+             </div>
           )}
-        </AnimatePresence>
+        </div>
+        <div ref={responseEndRef} />
       </div>
 
-      <div ref={responseEndRef} />
-
-      {/* Floating Prompt Input (ChatGPT Style) */}
+      {/* Floating ChatGPT-style Input */}
+      <div className="fixed bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-[#080808] via-[#080808]/90 to-transparent pointer-events-none z-40" />
+      
       <div className="fixed bottom-10 left-1/2 -translate-x-1/2 w-full max-w-3xl px-6 z-50">
-        <div className="bg-[#121212]/90 backdrop-blur-2xl border border-white/5 rounded-3xl shadow-[0_32px_64px_-16px_rgba(0,0,0,0.5)] p-2">
+        <div className="bg-[#121212]/95 backdrop-blur-3xl border border-white/10 rounded-[2rem] shadow-2xl p-2 relative pointer-events-auto">
           {attachment && (
-            <div className="px-4 py-2 border-b border-white/5 flex items-center gap-3">
-               <div className="relative w-12 h-12 rounded-lg overflow-hidden border border-white/10">
+            <div className="px-6 py-3 border-b border-white/5 flex items-center gap-4">
+               <div className="relative w-14 h-14 rounded-xl overflow-hidden border border-white/10 shadow-lg">
                  <img src={attachment} className="w-full h-full object-cover" alt="attachment" />
                  <button 
                   onClick={() => setAttachment(null)}
-                  className="absolute top-0 right-0 p-0.5 bg-black/60 text-white hover:text-neon"
+                  className="absolute top-0 right-0 p-1 bg-black/60 text-white hover:text-neon transition-colors"
                  >
                    <X className="w-3 h-3" />
                  </button>
                </div>
-               <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest">Image context attached</span>
+               <span className="text-[9px] font-mono text-white/30 uppercase tracking-[0.2em]">Context Attached</span>
             </div>
           )}
 
-          <div className="flex flex-wrap gap-2 mb-2 p-2 focus-within:opacity-100 opacity-60 hover:opacity-100 transition-opacity">
+          <div className="flex flex-wrap gap-2 px-3 py-2">
             {suggestions.map((s) => (
               <button
                 key={s.label}
                 onClick={() => handleGenerate(s.type)}
                 disabled={(!content && !attachment) || isGenerating}
-                className="flex items-center gap-2 px-4 py-2 rounded-full border border-white/5 bg-white/5 hover:bg-white/10 hover:border-white/20 transition-all text-[10px] uppercase font-bold tracking-widest text-white/40 disabled:opacity-20"
+                className="flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/5 bg-white/[0.03] hover:bg-white/[0.08] hover:border-white/20 transition-all text-[9px] uppercase font-bold tracking-[0.2em] text-white/40 disabled:opacity-10"
               >
-                <s.icon className="w-3.5 h-3.5" />
+                <s.icon className="w-3 h-3" />
                 {s.label}
               </button>
             ))}
@@ -278,27 +343,27 @@ export function WritingAssistant() {
               e.preventDefault();
               handleGenerate('general');
             }}
-            className="flex items-center gap-2 p-2 border-t border-white/5"
+            className="flex items-center gap-2 p-2"
           >
-            <div className="flex items-center gap-1">
+            <div className="flex items-center pl-2">
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="w-10 h-10 flex items-center justify-center text-white/40 hover:text-neon transition-colors group relative"
-                title="Add Image Context"
+                className="w-10 h-10 flex items-center justify-center text-white/20 hover:text-white transition-colors group relative"
               >
                 <Plus className="w-5 h-5" />
-                <span className="absolute -top-10 left-1/2 -translate-x-1/2 bg-white text-black text-[9px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity font-bold uppercase tracking-widest">Add File</span>
+                <span className="absolute -top-12 left-1/2 -translate-x-1/2 bg-white text-black text-[9px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity font-bold uppercase tracking-widest shadow-xl">Add Media</span>
               </button>
               <button
                 type="button"
                 onClick={clearSession}
-                className="w-10 h-10 flex items-center justify-center text-white/20 hover:text-white transition-colors"
-                title="New Session"
+                className="w-10 h-10 flex items-center justify-center text-white/10 hover:text-white transition-colors"
+                title="Flush Session"
               >
                 <RotateCcw className="w-4 h-4" />
               </button>
             </div>
+            
             <input 
               type="file"
               ref={fileInputRef}
@@ -306,33 +371,25 @@ export function WritingAssistant() {
               accept="image/*"
               className="hidden"
             />
+            
             <input
               type="text"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Message Assistant..."
-              className="flex-1 bg-transparent px-2 py-3 text-sm focus:outline-none placeholder:text-white/10"
+              placeholder={`Message ${currentMode.title.split(' ')[0]} Assistant...`}
+              className="flex-1 bg-transparent px-4 py-3 text-sm focus:outline-none placeholder:text-white/10 text-white/80"
             />
-            {needsKey ? (
-              <button
-                type="button"
-                onClick={() => (window as any).aistudio?.openApiKeySelector()}
-                className="h-10 px-4 bg-neon text-black rounded-xl text-[10px] font-bold uppercase tracking-widest flex items-center gap-2"
-              >
-                Set Key
-              </button>
-            ) : (
-              <button
-                type="submit"
-                disabled={(!prompt && !attachment) || isGenerating}
-                className="w-12 h-12 bg-white text-black rounded-2xl flex items-center justify-center hover:bg-neon transition-all disabled:opacity-20 disabled:bg-white/5 disabled:text-white/20 shadow-xl"
-              >
-                <Send className="w-5 h-5" />
-              </button>
-            )}
+
+            <button
+              type="submit"
+              disabled={(!prompt && !attachment && !content) || isGenerating}
+              className="w-11 h-11 bg-white text-black rounded-[1.25rem] flex items-center justify-center hover:bg-neon transition-all disabled:opacity-5 disabled:bg-white/5 disabled:text-white shadow-xl"
+            >
+              <Send className="w-4 h-4" />
+            </button>
           </form>
         </div>
-        <p className="text-center text-[9px] text-white/10 mt-6 uppercase tracking-[0.3em]">STJ Studio AI can make mistakes. Verify important info.</p>
+        <p className="text-center text-[8px] text-white/10 mt-6 uppercase tracking-[0.4em] font-mono">Synthesized Intelligence // STJ Studio v1.0.4</p>
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, Download, RefreshCcw, Image as ImageIcon, Wand2, Maximize2, Share2, Layers } from 'lucide-react';
-import { ai, MODELS } from '../lib/gemini';
+import { MODELS } from '../lib/gemini';
 import { cn } from '../lib/utils';
 
 export function ImageGenerator() {
@@ -10,43 +10,25 @@ export function ImageGenerator() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [aspectRatio, setAspectRatio] = useState('1:1');
   const [history, setHistory] = useState<string[]>([]);
-  const [needsKey, setNeedsKey] = useState(false);
 
   const handleGenerate = async () => {
     if (!prompt) return;
-
-    // Check for API Key if not provided in environment
-    if (!process.env.GEMINI_API_KEY) {
-      const hasKey = await (window as any).aistudio?.hasSelectedApiKey();
-      if (!hasKey) {
-        setNeedsKey(true);
-        return;
-      }
-    }
 
     setIsGenerating(true);
     setGeneratedImageUrl(null);
 
     try {
-      const response = await ai.models.generateContent({
-        model: MODELS.IMAGE,
-        contents: prompt,
-        config: {
-          imageConfig: {
-            aspectRatio: aspectRatio as any,
-          }
-        },
+      const response = await fetch('/api/generate-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, aspectRatio })
       });
-
-      for (const candidate of response.candidates || []) {
-        for (const part of candidate.content.parts || []) {
-          if (part.inlineData) {
-            const url = `data:image/png;base64,${part.inlineData.data}`;
-            setGeneratedImageUrl(url);
-            setHistory(prev => [url, ...prev].slice(0, 10));
-            break;
-          }
-        }
+      
+      const result = await response.json();
+      if (result.data) {
+        const url = `data:image/png;base64,${result.data}`;
+        setGeneratedImageUrl(url);
+        setHistory(prev => [url, ...prev].slice(0, 10));
       }
     } catch (error) {
       console.error('Error generating image:', error);
@@ -164,23 +146,13 @@ export function ImageGenerator() {
               placeholder="Describe the image you want specialized..."
               className="flex-1 bg-transparent px-4 py-2 text-sm focus:outline-none placeholder:text-white/10"
             />
-            {needsKey ? (
-              <button
-                type="button"
-                onClick={() => (window as any).aistudio?.openApiKeySelector()}
-                className="h-10 px-4 bg-neon text-black rounded-xl text-[10px] font-bold uppercase tracking-widest flex items-center gap-2"
-              >
-                Set Key
-              </button>
-            ) : (
-              <button
-                type="submit"
-                disabled={!prompt || isGenerating}
-                className="w-10 h-10 bg-white text-black rounded-xl flex items-center justify-center hover:bg-neon transition-all disabled:opacity-20 disabled:bg-white/5 disabled:text-white/20"
-              >
-                <Wand2 className="w-4 h-4" />
-              </button>
-            )}
+            <button
+              type="submit"
+              disabled={!prompt || isGenerating}
+              className="w-10 h-10 bg-white text-black rounded-xl flex items-center justify-center hover:bg-neon transition-all disabled:opacity-20 disabled:bg-white/5 disabled:text-white/20"
+            >
+              <Wand2 className="w-4 h-4" />
+            </button>
           </form>
         </div>
         

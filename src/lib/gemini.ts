@@ -9,5 +9,4 @@ export const ai = new GoogleGenAI({
 export const MODELS = {
   WRITING: "gemini-3-flash-preview",
   IMAGE: "gemini-2.5-flash-image",
-  VIDEO: "veo-3.1-lite-generate-preview",
 };

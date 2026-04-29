@@ -1,39 +1,61 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { PenLine, Image as ImageIcon, Video, Sparkles, Wand2, Zap, Settings, Menu, X, MoreVertical, Share2, Crown } from 'lucide-react';
+import { PenLine, Image as ImageIcon, Sparkles, Wand2, Zap, Settings, Menu, X, MoreVertical, Share2, Crown, Check } from 'lucide-react';
 import { WritingAssistant } from './components/WritingAssistant';
 import { ImageGenerator } from './components/ImageGenerator';
-import { VideoGenerator } from './components/VideoGenerator';
 import { cn } from './lib/utils';
 
-type Tab = 'writing' | 'image' | 'video';
+type Tab = 'writing' | 'image' | 'logic' | 'research';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('writing');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isShared, setIsShared] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const handleShare = () => {
+    const url = window.location.href;
+    if (navigator.share) {
+      navigator.share({
+        title: 'STJ.STUDIO',
+        text: 'Synthesize your digital vision.',
+        url
+      }).catch(console.error);
+    } else {
+      navigator.clipboard.writeText(url);
+      setIsShared(true);
+      setTimeout(() => setIsShared(false), 2000);
+    }
+  };
 
   const tabs = [
     { 
       id: 'writing', 
       name: 'Theory Lab', 
       icon: PenLine, 
-      label: 'Summarizer',
-      desc: 'Synthesize complex theories'
+      label: 'Synthesizer',
+      desc: 'Compress complexity into clarity'
+    },
+    { 
+      id: 'logic', 
+      name: 'Logic Forge', 
+      icon: Wand2, 
+      label: 'Architect',
+      desc: 'Build structures and code'
+    },
+    { 
+      id: 'research', 
+      name: 'Deep Search', 
+      icon: Sparkles, 
+      label: 'Explorer',
+      desc: 'Uncover hidden connections'
     },
     { 
       id: 'image', 
-      name: 'Visuals', 
+      name: 'Art Forge', 
       icon: ImageIcon, 
-      label: 'Art Forge',
+      label: 'Visualizer',
       desc: 'Generate visual artifacts'
-    },
-    { 
-      id: 'video', 
-      name: 'Motion', 
-      icon: Video, 
-      label: 'Forge',
-      desc: 'Cinematic temporal sequences'
     },
   ];
 
@@ -74,21 +96,16 @@ export default function App() {
            
            <div className="flex items-center gap-2 relative" ref={menuRef}>
               <button 
-                onClick={() => {
-                  if (navigator.share) {
-                    navigator.share({
-                      title: 'STJ.STUDIO',
-                      text: 'Check out this AI synthesis tool!',
-                      url: window.location.href,
-                    });
-                  } else {
-                    navigator.clipboard.writeText(window.location.href);
-                    alert('Link copied to clipboard!');
-                  }
-                }}
-                className="hidden sm:flex items-center gap-2 bg-white/5 border border-white/10 px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-white/10 transition-all mr-2"
+                onClick={handleShare}
+                className={cn(
+                  "hidden sm:flex items-center gap-2 px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all mr-2 transition-all",
+                  isShared 
+                    ? "bg-neon border-neon text-black" 
+                    : "bg-white/5 border-white/10 text-white/40 hover:bg-white/10 hover:text-white border"
+                )}
               >
-                <Share2 className="w-3 h-3" /> Share
+                {isShared ? <Check className="w-3 h-3" /> : <Share2 className="w-3 h-3" />}
+                {isShared ? 'Copied' : 'Share'}
               </button>
               
               <button 
@@ -161,16 +178,20 @@ export default function App() {
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.02 }}
+              transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
               className="flex-1 overflow-y-auto custom-scrollbar"
             >
-              {activeTab === 'writing' && <WritingAssistant />}
-              <div className="max-w-5xl mx-auto w-full px-6 py-12">
+              <div className={cn(
+                "w-full h-full",
+                activeTab === 'writing' || activeTab === 'logic' || activeTab === 'research' ? "" : "max-w-5xl mx-auto px-6 py-12"
+              )}>
+                {(activeTab === 'writing' || activeTab === 'logic' || activeTab === 'research') && (
+                  <WritingAssistant mode={activeTab as any} />
+                )}
                 {activeTab === 'image' && <ImageGenerator />}
-                {activeTab === 'video' && <VideoGenerator />}
               </div>
             </motion.div>
           </AnimatePresence>
