@@ -12,7 +12,7 @@
 
 @layer base {
   body {
-    @apply bg-[#080808] text-white antialiased;
+    @apply bg-[#0b0b0b] text-white antialiased;
   }
 }
 
@@ -39,11 +39,13 @@
   }
 
   .markdown-body {
-    @apply text-white/70 leading-relaxed;
+    @apply text-white/80 leading-relaxed;
   }
-  .markdown-body h1 { @apply font-display text-4xl text-white mb-6 uppercase tracking-tighter; }
-  .markdown-body h2 { @apply font-display text-2xl text-white mb-4 uppercase tracking-tighter; }
-  .markdown-body p { @apply mb-6; }
-  .markdown-body code { @apply bg-white/5 px-1.5 py-0.5 rounded text-sm font-mono text-neon; }
-  .markdown-body pre { @apply bg-[#030303] p-6 rounded-none overflow-x-auto mb-6 border border-grid; }
+  .markdown-body h1 { @apply font-display text-3xl text-white mb-6 uppercase tracking-widest; }
+  .markdown-body h2 { @apply font-display text-xl text-white mb-4 uppercase tracking-widest; }
+  .markdown-body p { @apply mb-4 text-base; }
+  .markdown-body ol, .markdown-body ul { @apply mb-4 pl-6; }
+  .markdown-body li { @apply mb-2; }
+  .markdown-body code { @apply bg-white/10 px-1.5 py-0.5 rounded text-[13px] font-mono text-neon/90; }
+  .markdown-body pre { @apply bg-black/60 p-6 rounded-2xl overflow-x-auto mb-6 border border-white/10; }
 }

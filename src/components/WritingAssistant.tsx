@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Send, Sparkles, Wand2, Copy, Check, RotateCcw, PenTool, Type, List, FileText, Image as ImageIcon, X, Plus, Info, Paperclip, MessageSquarePlus } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { MODELS } from '../lib/gemini';
+import { ai, MODELS } from '../lib/gemini';
 import { cn } from '../lib/utils';
 
 interface WritingAssistantProps {
@@ -101,10 +101,10 @@ export function WritingAssistant({ mode }: WritingAssistantProps) {
       else if (type === 'summarize') finalPrompt = `Synthesize this into core essence and key points:\n\n${content}`;
       else finalPrompt = userQuery;
 
-      const contents: any[] = [finalPrompt];
+      const contents: any[] = [{ role: 'user', parts: [{ text: finalPrompt }] }];
       
       if (attachment) {
-        contents.push({
+        contents[0].parts.push({
           inlineData: {
             mimeType: attachment.split(';')[0].split(':')[1],
             data: attachment.split(',')[1]
@@ -113,25 +113,25 @@ export function WritingAssistant({ mode }: WritingAssistantProps) {
       }
 
       if (content && type !== 'general') {
-        contents.unshift(`Context Material:\n${content}\n\nTask:`);
+        contents[0].parts.unshift({ text: `Context Material:\n${content}\n\nTask:` });
       } else if (content) {
-        contents.unshift(`Project Background:\n${content}\n\nQuestion:`);
+        contents[0].parts.unshift({ text: `Project Background:\n${content}\n\nQuestion:` });
       }
 
+      // Call the server-side proxy
       const response = await fetch('/api/generate', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents,
           systemInstruction: currentMode.instruction,
           model: MODELS.WRITING
-        }),
+        })
       });
 
       if (!response.ok) {
-        throw new Error('Server integration failure');
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || 'Server Synthesis Failure');
       }
 
       const reader = response.body?.getReader();
@@ -154,13 +154,16 @@ export function WritingAssistant({ mode }: WritingAssistantProps) {
           });
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error:', error);
       setMessages(prev => {
         const updated = [...prev];
         const assistantIndex = currentMessagesCount + 1;
         if (updated[assistantIndex]) {
-           updated[assistantIndex] = { role: 'assistant', content: 'Connection failure. Please verify your connection and try again.' };
+           updated[assistantIndex] = { 
+             role: 'assistant', 
+             content: `[System Error]: ${error.message || 'Connection failure. Verify AI Studio settings.'}` 
+           };
         }
         return updated;
       });
@@ -190,28 +193,37 @@ export function WritingAssistant({ mode }: WritingAssistantProps) {
   };
 
   return (
-    <div className="flex flex-col h-full max-w-4xl mx-auto relative bg-[#080808]">
+    <div className="flex flex-col h-full max-w-4xl mx-auto relative bg-[#0d0d0d]">
       {/* Header Info - ChatGPT Style */}
-      <div className="flex flex-col items-center justify-center pt-20 pb-12 px-6">
-        <h1 className="text-4xl font-display uppercase tracking-widest mb-3 text-white/90">{currentMode.title}</h1>
-        <p className="text-white/30 text-xs font-mono tracking-widest max-w-sm text-center uppercase leading-relaxed">{currentMode.desc}</p>
+      <div className="flex flex-col items-center justify-center pt-24 pb-8 px-6">
+        <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-6">
+          <Sparkles className="w-6 h-6 text-neon" />
+        </div>
+        <h1 className="text-3xl font-display uppercase tracking-[0.3em] mb-2 text-white/90">{currentMode.title}</h1>
+        <p className="text-white/20 text-[10px] font-mono tracking-[0.2em] max-w-sm text-center uppercase leading-relaxed">{currentMode.desc}</p>
       </div>
 
       {/* Main Conversation Thread */}
-      <div className="flex-1 overflow-y-auto px-4 sm:px-10 space-y-12 pb-56 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto px-4 sm:px-10 space-y-12 pb-64 custom-scrollbar">
         {/* Persistent Context Block */}
-        <section className="bg-white/[0.02] border border-white/5 rounded-3xl p-8 relative group hover:bg-white/[0.03] transition-all duration-500">
+        <section className="bg-white/[0.03] border border-white/5 rounded-[2rem] p-8 relative group hover:bg-white/[0.04] transition-all duration-500 shadow-xl">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-               <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
-               <span className="text-[9px] font-mono text-white/30 uppercase tracking-[0.4em] font-bold">Base_Context</span>
+               <div className="w-1.5 h-1.5 rounded-full bg-neon animate-pulse" />
+               <span className="text-[9px] font-mono text-white/40 uppercase tracking-[0.4em] font-bold">Source_Nucleus</span>
             </div>
+            <button 
+              onClick={() => setContent('')}
+              className="opacity-0 group-hover:opacity-100 transition-opacity text-[8px] font-mono text-white/20 hover:text-red-400 uppercase tracking-widest"
+            >
+              [ Flush_Buffer ]
+            </button>
           </div>
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder={currentMode.placeholder}
-            className="w-full bg-transparent resize-none focus:outline-none text-base leading-relaxed text-white/70 placeholder:text-white/5 font-sans min-h-[120px]"
+            className="w-full bg-transparent resize-none focus:outline-none text-base leading-relaxed text-white/80 placeholder:text-white/5 font-sans min-h-[140px]"
           />
         </section>
 
@@ -305,13 +317,13 @@ export function WritingAssistant({ mode }: WritingAssistantProps) {
       </div>
 
       {/* Floating ChatGPT-style Input */}
-      <div className="fixed bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-[#080808] via-[#080808]/90 to-transparent pointer-events-none z-40" />
+      <div className="fixed bottom-0 left-0 right-0 h-48 bg-gradient-to-t from-[#0d0d0d] via-[#0d0d0d]/95 to-transparent pointer-events-none z-40" />
       
       <div className="fixed bottom-10 left-1/2 -translate-x-1/2 w-full max-w-3xl px-6 z-50">
-        <div className="bg-[#121212]/95 backdrop-blur-3xl border border-white/10 rounded-[2rem] shadow-2xl p-2 relative pointer-events-auto">
+        <div className="bg-[#1a1a1a]/95 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] shadow-2xl p-2 relative pointer-events-auto">
           {attachment && (
-            <div className="px-6 py-3 border-b border-white/5 flex items-center gap-4">
-               <div className="relative w-14 h-14 rounded-xl overflow-hidden border border-white/10 shadow-lg">
+            <div className="px-6 py-4 border-b border-white/5 flex items-center gap-4">
+               <div className="relative w-16 h-16 rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
                  <img src={attachment} className="w-full h-full object-cover" alt="attachment" />
                  <button 
                   onClick={() => setAttachment(null)}

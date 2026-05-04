@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, Download, RefreshCcw, Image as ImageIcon, Wand2, Maximize2, Share2, Layers } from 'lucide-react';
-import { MODELS } from '../lib/gemini';
+import { ai, MODELS } from '../lib/gemini';
 import { cn } from '../lib/utils';
 
 export function ImageGenerator() {
@@ -23,14 +23,19 @@ export function ImageGenerator() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt, aspectRatio })
       });
-      
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || 'Server Synthesis Failure');
+      }
+
       const result = await response.json();
       if (result.data) {
         const url = `data:image/png;base64,${result.data}`;
         setGeneratedImageUrl(url);
         setHistory(prev => [url, ...prev].slice(0, 10));
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error generating image:', error);
     } finally {
       setIsGenerating(false);
