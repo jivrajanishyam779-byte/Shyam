@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { PenLine, Image as ImageIcon, Sparkles, Wand2, Zap, Settings, Menu, X, MoreVertical, Share2, Crown, Check } from 'lucide-react';
+import { PenLine, Image as ImageIcon, Sparkles, Wand2, Zap, Settings, Menu, X, MoreVertical, Share2, Crown, Check, Download, Smartphone } from 'lucide-react';
 import { WritingAssistant } from './components/WritingAssistant';
 import { ImageGenerator } from './components/ImageGenerator';
 import { cn } from './lib/utils';
@@ -11,7 +11,47 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('writing');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isShared, setIsShared] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Check if it's iOS
+    const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    setIsIOS(isIOSDevice);
+
+    // Listen for PWA install prompt
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setShowInstallPrompt(true);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    // Check if already installed
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      setShowInstallPrompt(false);
+    }
+
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) {
+      if (isIOS) {
+        alert("To install on iOS:\n1. Tap the Share button\n2. Scroll down\n3. Tap 'Add to Home Screen'");
+      }
+      return;
+    }
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setShowInstallPrompt(false);
+    }
+    setDeferredPrompt(null);
+  };
 
   const handleShare = () => {
     const url = window.location.href;
@@ -106,6 +146,19 @@ export default function App() {
               >
                 {isShared ? <Check className="w-3 h-3" /> : <Share2 className="w-3 h-3" />}
                 {isShared ? 'Copied' : 'Share'}
+              </button>
+
+              <button 
+                onClick={handleInstallClick}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border",
+                  showInstallPrompt || isIOS
+                    ? "bg-white/10 border-neon text-neon shadow-[0_0_10px_rgba(223,255,0,0.1)]"
+                    : "bg-transparent border-white/5 text-white/20 hover:text-white/40 hidden sm:flex"
+                )}
+              >
+                <Smartphone className="w-3 h-3" />
+                {isIOS ? 'Install Instructions' : 'Install App'}
               </button>
               
               <button 
