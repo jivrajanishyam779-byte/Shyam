@@ -18,7 +18,6 @@ interface Message {
 
 export function WritingAssistant({ mode }: WritingAssistantProps) {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [content, setContent] = useState('');
   const [attachment, setAttachment] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
@@ -76,11 +75,11 @@ export function WritingAssistant({ mode }: WritingAssistantProps) {
 
   const handleGenerate = async (type: 'improve' | 'expand' | 'summarize' | 'general' = 'general') => {
     const userQuery = type === 'general' ? prompt : `Action: ${type}`;
-    if (!userQuery && !attachment && !content) return;
+    if (!userQuery && !attachment) return;
 
     const newUserMessage: Message = {
       role: 'user',
-      content: userQuery || (content ? `Using Source Material: ${content.substring(0, 50)}...` : "Analyze this context"),
+      content: userQuery || "Analyze this context",
       attachment: attachment,
       type
     };
@@ -95,16 +94,25 @@ export function WritingAssistant({ mode }: WritingAssistantProps) {
     setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
 
     try {
-      let finalPrompt = '';
-      if (type === 'improve') finalPrompt = `Improve the following for clarity and professional tone:\n\n${content}`;
-      else if (type === 'expand') finalPrompt = `Provide more detail and depth for the following:\n\n${content}`;
-      else if (type === 'summarize') finalPrompt = `Synthesize this into core essence and key points:\n\n${content}`;
-      else finalPrompt = userQuery;
+      // Prepare history for API - Filter out empty or system messages
+      const history = messages
+        .filter(m => m.content && m.content.trim() !== '')
+        .map(m => ({
+          role: m.role === 'assistant' ? 'model' : 'user',
+          parts: [{ text: m.content }]
+        }));
+      
+      // Ensure we don't send the empty assistant message placeholder in the history
+      if (history.length > 0 && history[history.length - 1].role === 'model' && history[history.length - 1].parts[0].text === '') {
+        history.pop();
+      }
 
-      const contents: any[] = [{ role: 'user', parts: [{ text: finalPrompt }] }];
+      const contents: any[] = [...history, { role: 'user', parts: [{ text: userQuery }] }];
       
       if (attachment) {
-        contents[0].parts.push({
+        // Add attachment to the last user message
+        const lastMsg = contents[contents.length - 1];
+        lastMsg.parts.push({
           inlineData: {
             mimeType: attachment.split(';')[0].split(':')[1],
             data: attachment.split(',')[1]
@@ -112,38 +120,20 @@ export function WritingAssistant({ mode }: WritingAssistantProps) {
         });
       }
 
-      if (content && type !== 'general') {
-        contents[0].parts.unshift({ text: `Context Material:\n${content}\n\nTask:` });
-      } else if (content) {
-        contents[0].parts.unshift({ text: `Project Background:\n${content}\n\nQuestion:` });
-      }
-
-      // Call the server-side proxy
-      const response = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents,
+      // CALL FRONTEND SDK DIRECTLY
+      const responseStream = await ai.models.generateContentStream({
+        model: MODELS.WRITING,
+        contents,
+        config: {
           systemInstruction: currentMode.instruction,
-          model: MODELS.WRITING
-        })
+        }
       });
 
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error || 'Server Synthesis Failure');
-      }
-
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
       let fullText = '';
-
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          const chunk = decoder.decode(value);
-          fullText += chunk;
+      for await (const chunk of responseStream) {
+        const chunkText = chunk.text;
+        if (chunkText) {
+          fullText += chunkText;
           setMessages(prev => {
             const updated = [...prev];
             const assistantIndex = currentMessagesCount + 1;
@@ -162,7 +152,7 @@ export function WritingAssistant({ mode }: WritingAssistantProps) {
         if (updated[assistantIndex]) {
            updated[assistantIndex] = { 
              role: 'assistant', 
-             content: `[System Error]: ${error.message || 'Connection failure. Verify AI Studio settings.'}` 
+             content: `[Synthesis Error]: ${error.message || 'Interface connection failure.'}` 
            };
         }
         return updated;
@@ -186,7 +176,6 @@ export function WritingAssistant({ mode }: WritingAssistantProps) {
   ];
 
   const clearSession = () => {
-    setContent('');
     setAttachment(null);
     setMessages([]);
     setPrompt('');
@@ -205,28 +194,6 @@ export function WritingAssistant({ mode }: WritingAssistantProps) {
 
       {/* Main Conversation Thread */}
       <div className="flex-1 overflow-y-auto px-4 sm:px-10 space-y-12 pb-64 custom-scrollbar">
-        {/* Persistent Context Block */}
-        <section className="bg-white/[0.03] border border-white/5 rounded-[2rem] p-8 relative group hover:bg-white/[0.04] transition-all duration-500 shadow-xl">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-               <div className="w-1.5 h-1.5 rounded-full bg-neon animate-pulse" />
-               <span className="text-[9px] font-mono text-white/40 uppercase tracking-[0.4em] font-bold">Source_Nucleus</span>
-            </div>
-            <button 
-              onClick={() => setContent('')}
-              className="opacity-0 group-hover:opacity-100 transition-opacity text-[8px] font-mono text-white/20 hover:text-red-400 uppercase tracking-widest"
-            >
-              [ Flush_Buffer ]
-            </button>
-          </div>
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder={currentMode.placeholder}
-            className="w-full bg-transparent resize-none focus:outline-none text-base leading-relaxed text-white/80 placeholder:text-white/5 font-sans min-h-[140px]"
-          />
-        </section>
-
         {/* Message History */}
         <div className="space-y-12">
           {messages.map((msg, idx) => (
@@ -280,7 +247,7 @@ export function WritingAssistant({ mode }: WritingAssistantProps) {
           ))}
           
           {messages.length === 0 && (
-             <div className="flex flex-col items-center justify-center pt-12 pb-32 px-6 text-center">
+             <div className="flex flex-col items-center justify-center pt-24 pb-32 px-6 text-center">
                 <motion.div 
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -292,24 +259,6 @@ export function WritingAssistant({ mode }: WritingAssistantProps) {
                 
                 <h3 className="text-xl font-display uppercase tracking-[0.2em] mb-3 text-white/80">{currentMode.emptyLabel}</h3>
                 <p className="text-xs text-white/30 max-w-sm font-mono tracking-widest uppercase mb-12">{currentMode.emptyDesc}</p>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg w-full">
-                  {[
-                    { title: "Deep Dive", prompt: "Explain the systemic architecture of..." },
-                    { title: "Structural Analysis", prompt: "Evaluate the logic behind..." },
-                    { title: "Theoretical Core", prompt: "Synthesize the fundamental principles of..." },
-                    { title: "Rapid Refinement", prompt: "Refactor this concept for clarity:" }
-                  ].map((starter, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setPrompt(starter.prompt)}
-                      className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl text-left hover:bg-white/[0.05] hover:border-white/10 transition-all group"
-                    >
-                      <h4 className="text-[10px] font-bold uppercase tracking-widest text-white/20 group-hover:text-neon transition-colors mb-1">{starter.title}</h4>
-                      <p className="text-[10px] text-white/40 leading-relaxed font-mono">{starter.prompt}</p>
-                    </button>
-                  ))}
-                </div>
              </div>
           )}
         </div>
@@ -335,20 +284,6 @@ export function WritingAssistant({ mode }: WritingAssistantProps) {
                <span className="text-[9px] font-mono text-white/30 uppercase tracking-[0.2em]">Context Attached</span>
             </div>
           )}
-
-          <div className="flex flex-wrap gap-2 px-3 py-2">
-            {suggestions.map((s) => (
-              <button
-                key={s.label}
-                onClick={() => handleGenerate(s.type)}
-                disabled={(!content && !attachment) || isGenerating}
-                className="flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/5 bg-white/[0.03] hover:bg-white/[0.08] hover:border-white/20 transition-all text-[9px] uppercase font-bold tracking-[0.2em] text-white/40 disabled:opacity-10"
-              >
-                <s.icon className="w-3 h-3" />
-                {s.label}
-              </button>
-            ))}
-          </div>
 
           <form 
             onSubmit={(e) => {
@@ -388,13 +323,13 @@ export function WritingAssistant({ mode }: WritingAssistantProps) {
               type="text"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder={`Message ${currentMode.title.split(' ')[0]} Assistant...`}
+              placeholder={currentMode.placeholder}
               className="flex-1 bg-transparent px-4 py-3 text-sm focus:outline-none placeholder:text-white/10 text-white/80"
             />
 
             <button
               type="submit"
-              disabled={(!prompt && !attachment && !content) || isGenerating}
+              disabled={(!prompt && !attachment) || isGenerating}
               className="w-11 h-11 bg-white text-black rounded-[1.25rem] flex items-center justify-center hover:bg-neon transition-all disabled:opacity-5 disabled:bg-white/5 disabled:text-white shadow-xl"
             >
               <Send className="w-4 h-4" />

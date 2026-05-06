@@ -8,35 +8,46 @@ export function ImageGenerator() {
   const [prompt, setPrompt] = useState('');
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [aspectRatio, setAspectRatio] = useState('1:1');
   const [history, setHistory] = useState<string[]>([]);
 
   const handleGenerate = async () => {
-    if (!prompt) return;
+    if (!prompt.trim()) return;
 
     setIsGenerating(true);
     setGeneratedImageUrl(null);
+    setError(null);
 
     try {
-      const response = await fetch('/api/generate-image', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, aspectRatio })
+      // CALL FRONTEND SDK DIRECTLY
+      const response = await ai.models.generateContent({
+        model: MODELS.IMAGE,
+        contents: prompt,
+        config: {
+          imageConfig: {
+            aspectRatio: aspectRatio as any,
+          }
+        }
       });
 
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error || 'Server Synthesis Failure');
+      let foundImageUrl = "";
+      for (const part of response.candidates[0].content.parts) {
+        if (part.inlineData) {
+          foundImageUrl = `data:image/png;base64,${part.inlineData.data}`;
+          break;
+        }
       }
 
-      const result = await response.json();
-      if (result.data) {
-        const url = `data:image/png;base64,${result.data}`;
-        setGeneratedImageUrl(url);
-        setHistory(prev => [url, ...prev].slice(0, 10));
+      if (foundImageUrl) {
+        setGeneratedImageUrl(foundImageUrl);
+        setHistory(prev => [foundImageUrl, ...prev].slice(0, 10));
+      } else {
+        throw new Error('Model returned no image artifacts.');
       }
-    } catch (error: any) {
-      console.error('Error generating image:', error);
+    } catch (err: any) {
+      console.error('Error generating image:', err);
+      setError(err.message || 'Interface Connection Failure');
     } finally {
       setIsGenerating(false);
     }
@@ -57,7 +68,27 @@ export function ImageGenerator() {
       {/* Visual Workspace Stage */}
       <div className="flex-1 flex flex-col items-center justify-center py-8">
         <AnimatePresence mode="wait">
-          {generatedImageUrl || isGenerating ? (
+          {error ? (
+            <motion.div
+              key="error"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="max-w-2xl px-6 py-12 bg-white/[0.02] border border-red-500/10 rounded-[2.5rem] text-center"
+            >
+              <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-6">
+                <Sparkles className="w-8 h-8 text-red-400" />
+              </div>
+              <h3 className="text-xl font-display uppercase tracking-widest text-white/80 mb-4">Manifestation Restricted</h3>
+              <p className="text-[13px] text-white/40 leading-relaxed font-mono uppercase tracking-wider mb-8">{error}</p>
+              <button 
+                onClick={() => setError(null)}
+                className="px-6 py-2 rounded-full border border-white/10 hover:border-white/20 text-[10px] uppercase font-bold tracking-widest text-white/30 hover:text-white transition-all"
+              >
+                [ Reset Flux ]
+              </button>
+            </motion.div>
+          ) : generatedImageUrl || isGenerating ? (
             <motion.div
               key={generatedImageUrl || 'generating'}
               initial={{ opacity: 0, scale: 0.95 }}
@@ -115,28 +146,6 @@ export function ImageGenerator() {
       {/* Control Panel (ChatGPT Style) */}
       <div className="fixed bottom-12 left-1/2 -translate-x-1/2 w-full max-w-2xl px-6 z-50">
         <div className="bg-[#151515] border border-white/5 rounded-2xl shadow-2xl p-2">
-          {/* Ratio Selector Bubble */}
-          <div className="flex items-center gap-2 mb-2 p-2 overflow-x-auto custom-scrollbar no-scrollbar">
-            <div className="flex items-center gap-2 pr-4 border-r border-white/5 mr-2">
-              <Layers className="w-3 h-3 text-white/20" />
-              <span className="text-[9px] font-bold uppercase tracking-widest text-white/20 shrink-0">Ratio</span>
-            </div>
-            {ratios.map(r => (
-              <button
-                key={r}
-                onClick={() => setAspectRatio(r)}
-                className={cn(
-                  "px-3 py-1.5 rounded-full text-[10px] uppercase font-bold tracking-widest transition-all shrink-0",
-                  aspectRatio === r 
-                    ? "bg-neon text-black" 
-                    : "text-white/30 hover:text-white"
-                )}
-              >
-                {r}
-              </button>
-            ))}
-          </div>
-
           <form 
             onSubmit={(e) => {
               e.preventDefault();
@@ -148,7 +157,7 @@ export function ImageGenerator() {
               type="text"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Describe the image you want specialized..."
+              placeholder="Describe the image artifact to manifest..."
               className="flex-1 bg-transparent px-4 py-2 text-sm focus:outline-none placeholder:text-white/10"
             />
             <button
