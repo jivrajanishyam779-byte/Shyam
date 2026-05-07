@@ -11,9 +11,30 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('writing');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isShared, setIsShared] = useState(false);
+  const [hasApiKey, setHasApiKey] = useState(true);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
+
+  useEffect(() => {
+    // Check key selection state for AI Studio
+    const checkKey = async () => {
+      if ((window as any).aistudio?.hasSelectedApiKey) {
+        const selected = await (window as any).aistudio.hasSelectedApiKey();
+        setHasApiKey(selected);
+      }
+    };
+    checkKey();
+  }, []);
+
+  const openKeySelector = async () => {
+    if ((window as any).aistudio?.openSelectKey) {
+      await (window as any).aistudio.openSelectKey();
+      setHasApiKey(true);
+      // Optional: reload to ensure new key is picked up
+      window.location.reload();
+    }
+  };
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -160,6 +181,16 @@ export default function App() {
                 <Smartphone className="w-3 h-3" />
                 {isIOS ? 'Install Instructions' : 'Install App'}
               </button>
+              
+              {!hasApiKey && (
+                <button 
+                  onClick={openKeySelector}
+                  className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border border-red-500/50 bg-red-500/10 text-red-500 hover:bg-red-500/20"
+                >
+                  <Crown className="w-3 h-3" />
+                  Connect API Key
+                </button>
+              )}
               
               <button 
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
