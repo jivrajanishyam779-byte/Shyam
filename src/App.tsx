@@ -19,12 +19,15 @@ export default function App() {
   useEffect(() => {
     // Check key selection state for AI Studio preview
     const checkKey = async () => {
-      if ((window as any).aistudio?.hasSelectedApiKey) {
+      const isAIStudio = !!(window as any).aistudio;
+      
+      if (isAIStudio && (window as any).aistudio.hasSelectedApiKey) {
         const selected = await (window as any).aistudio.hasSelectedApiKey();
         setHasApiKey(selected);
       } else {
-        // If not in AI Studio, we assume the environment variable will be used
-        setHasApiKey(true);
+        // If not in AI Studio (e.g. Vercel), check for the environment variable
+        const envKey = (import.meta as any).env.VITE_GEMINI_API_KEY;
+        setHasApiKey(!!envKey && envKey !== 'MY_GEMINI_API_KEY');
       }
     };
     checkKey();
