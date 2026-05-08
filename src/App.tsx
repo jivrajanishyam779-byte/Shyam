@@ -17,11 +17,14 @@ export default function App() {
   const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
-    // Check key selection state for AI Studio
+    // Check key selection state for AI Studio preview
     const checkKey = async () => {
       if ((window as any).aistudio?.hasSelectedApiKey) {
         const selected = await (window as any).aistudio.hasSelectedApiKey();
         setHasApiKey(selected);
+      } else {
+        // If not in AI Studio, we assume the environment variable will be used
+        setHasApiKey(true);
       }
     };
     checkKey();
@@ -182,7 +185,8 @@ export default function App() {
                 {isIOS ? 'Install Instructions' : 'Install App'}
               </button>
               
-              {!hasApiKey && (
+              {/* Only show key selector if we are in the AI Studio preview environment */}
+              {(window as any).aistudio && !hasApiKey && (
                 <button 
                   onClick={openKeySelector}
                   className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border border-red-500/50 bg-red-500/10 text-red-500 hover:bg-red-500/20"

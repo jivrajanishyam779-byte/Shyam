@@ -1,12 +1,13 @@
 import { GoogleGenAI } from "@google/genai";
 
 // Initialize Gemini API
-// Note: In AI Studio, process.env.GEMINI_API_KEY is automatically provided via vite define
+const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || (process as any).env?.GEMINI_API_KEY || '';
+
 export const ai = new GoogleGenAI({ 
-  apiKey: (import.meta as any).env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || ''
+  apiKey: API_KEY
 });
 
 export const MODELS = {
   WRITING: "gemini-2.0-flash",
-  IMAGE: "gemini-2.0-flash-exp",
+  IMAGE: "gemini-2.0-flash",
 };
